@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>КРОК 1</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,300;0,400;0,500;1,300&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #0f0f0f;
+    --surface: #181818;
+    --surface2: #222;
+    --border: #2a2a2a;
+    --text: #e8e4de;
+    --text-dim: #666;
+    --text-dimmer: #3a3a3a;
+    --accent: #c8a96e;
+    --correct: #4a9b6f;
+    --correct-bg: #0d2218;
+    --wrong: #9b4a4a;
+    --wrong-bg: #220d0d;
+    --correct-light: #6dbf8e;
+    --wrong-light: #bf6d6d;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Spectral', Georgia, serif;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  /* ── SCREENS ── */
+  .screen { display: none; height: 100dvh; flex-direction: column; }
+  .screen.active { display: flex; }
+
+  /* ── LOADING ── */
+  #screen-load {
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+  }
+  .load-title {
+    font-size: 13px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .load-bar-wrap {
+    width: 200px;
+    height: 1px;
+    background: var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  .load-bar {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width 0.3s ease;
+  }
+  .load-pct {
+    font-size: 11px;
+    color: var(--text-dimmer);
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.1em;
+  }
+
+  /* ── START ── */
+  #screen-start {
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    padding: 40px 32px;
+  }
+  .start-eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--text-dimmer);
+    margin-bottom: 20px;
+  }
+  .start-title {
+    font-size: 52px;
+    font-weight: 300;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    line-height: 1;
+    margin-bottom: 6px;
+    text-align: center;
+  }
+  .start-sub {
+    font-size: 14px;
+    color: var(--text-dim);
+    font-style: italic;
+    margin-bottom: 48px;
+    text-align: center;
+  }
+  .stats-row {
+    display: flex;
+    gap: 32px;
+    margin-bottom: 56px;
+  }
+  .stat-item { text-align: center; }
+  .stat-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 22px;
+    color: var(--accent);
+    font-weight: 500;
+  }
+  .stat-label {
+    font-size: 10px;
+    color: var(--text-dimmer);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    margin-top: 2px;
+  }
+
+  .subject-filter {
+    width: 100%;
+    max-width: 340px;
+    margin-bottom: 32px;
+  }
+  .subject-filter label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    color: var(--text-dimmer);
+    font-family: 'JetBrains Mono', monospace;
+    display: block;
+    margin-bottom: 10px;
+  }
+  .subject-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .chip {
+    padding: 5px 12px;
+    border-radius: 2px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.05em;
+  }
+  .chip.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(200,169,110,0.08);
+  }
+
+  .btn-start {
+    width: 100%;
+    max-width: 340px;
+    padding: 18px;
+    background: var(--accent);
+    color: #0f0f0f;
+    border: none;
+    border-radius: 2px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .btn-start:active { opacity: 0.8; }
+
+  /* ── QUIZ ── */
+  #screen-quiz {
+    padding: 0;
+  }
+
+  .quiz-header {
+    padding: 20px 24px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .quiz-progress-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+  }
+  .quiz-subject-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dimmer);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  .progress-bar-wrap {
+    height: 2px;
+    background: var(--border);
+    flex-shrink: 0;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    background: var(--accent);
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .quiz-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 28px 24px 24px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .question-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dimmer);
+    letter-spacing: 0.2em;
+    margin-bottom: 14px;
+  }
+
+  .question-text {
+    font-size: 17px;
+    font-weight: 400;
+    line-height: 1.65;
+    color: var(--text);
+    margin-bottom: 32px;
+    letter-spacing: -0.01em;
+  }
+
+  .options-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .option-btn {
+    width: 100%;
+    padding: 16px 18px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    color: var(--text);
+    font-family: 'Spectral', Georgia, serif;
+    font-size: 15px;
+    line-height: 1.5;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+  .option-btn:active:not(:disabled) {
+    background: var(--surface2);
+  }
+  .option-letter {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dimmer);
+    min-width: 16px;
+    padding-top: 2px;
+    letter-spacing: 0;
+    flex-shrink: 0;
+  }
+  .option-text { flex: 1; }
+
+  .option-btn.correct {
+    background: var(--correct-bg);
+    border-color: var(--correct);
+    color: var(--correct-light);
+  }
+  .option-btn.correct .option-letter { color: var(--correct-light); }
+
+  .option-btn.wrong {
+    background: var(--wrong-bg);
+    border-color: var(--wrong);
+    color: var(--wrong-light);
+  }
+  .option-btn.wrong .option-letter { color: var(--wrong-light); }
+
+  .option-btn.dimmed {
+    opacity: 0.35;
+  }
+
+  .feedback-row {
+    margin-top: 24px;
+    padding: 14px 18px;
+    border-radius: 2px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    display: none;
+    align-items: center;
+    gap: 10px;
+  }
+  .feedback-row.show { display: flex; }
+  .feedback-row.ok { background: var(--correct-bg); color: var(--correct-light); border: 1px solid var(--correct); }
+  .feedback-row.fail { background: var(--wrong-bg); color: var(--wrong-light); border: 1px solid var(--wrong); }
+
+  .btn-next {
+    margin-top: 20px;
+    width: 100%;
+    padding: 16px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    cursor: pointer;
+    display: none;
+    transition: all 0.15s;
+  }
+  .btn-next.show { display: block; }
+  .btn-next:active { background: var(--surface); }
+
+  /* ── RESULT ── */
+  #screen-result {
+    align-items: center;
+    justify-content: center;
+    padding: 40px 32px;
+    gap: 0;
+    text-align: center;
+  }
+  .result-eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--text-dimmer);
+    margin-bottom: 20px;
+  }
+  .result-score {
+    font-size: 80px;
+    font-weight: 300;
+    line-height: 1;
+    color: var(--accent);
+    margin-bottom: 6px;
+    letter-spacing: -0.03em;
+  }
+  .result-label {
+    font-size: 13px;
+    color: var(--text-dim);
+    font-style: italic;
+    margin-bottom: 10px;
+  }
+  .result-detail {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dimmer);
+    letter-spacing: 0.1em;
+    margin-bottom: 52px;
+  }
+  .result-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    max-width: 300px;
+  }
+  .btn-action {
+    padding: 16px;
+    border-radius: 2px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border: none;
+    transition: opacity 0.15s;
+  }
+  .btn-action:active { opacity: 0.8; }
+  .btn-primary { background: var(--accent); color: #0f0f0f; }
+  .btn-secondary { background: transparent; border: 1px solid var(--border) !important; color: var(--text-dim); }
+  .btn-tiktok {
+    background: transparent;
+    border: 1px solid var(--border) !important;
+    color: var(--text-dim);
+  }
+
+  /* dots progress */
+  .dots-progress {
+    display: flex;
+    gap: 6px;
+    padding: 12px 24px;
+    flex-shrink: 0;
+    justify-content: center;
+    border-bottom: 1px solid var(--border);
+  }
+  .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--border);
+    transition: background 0.2s;
+  }
+  .dot.done-ok { background: var(--correct); }
+  .dot.done-fail { background: var(--wrong); }
+  .dot.current { background: var(--accent); }
+
+  /* swipe hint */
+  .swipe-hint {
+    text-align: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dimmer);
+    letter-spacing: 0.15em;
+    padding: 10px;
+    flex-shrink: 0;
+  }
+
+  @media (min-height: 700px) {
+    .question-text { font-size: 18px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div class="screen active" id="screen-load">
+  <div class="load-title">Завантаження бази</div>
+  <div class="load-bar-wrap"><div class="load-bar" id="load-bar"></div></div>
+  <div class="load-pct" id="load-pct">0%</div>
+</div>
+
+<!-- START -->
+<div class="screen" id="screen-start">
+  <div class="start-eyebrow">Підготовка до іспиту</div>
+  <div class="start-title">КРОК 1</div>
+  <div class="start-sub">Ліцензійний інтегрований іспит</div>
+  <div class="stats-row">
+    <div class="stat-item">
+      <div class="stat-num" id="total-count">—</div>
+      <div class="stat-label">питань</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num">10</div>
+      <div class="stat-label">за сесію</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num">9</div>
+      <div class="stat-label">предметів</div>
+    </div>
+  </div>
+
+  <div class="subject-filter">
+    <label>Фільтр за предметом</label>
+    <div class="subject-chips" id="chips"></div>
+  </div>
+
+  <button class="btn-start" onclick="startQuiz()">Почати сесію →</button>
+</div>
+
+<!-- QUIZ -->
+<div class="screen" id="screen-quiz">
+  <div class="quiz-header">
+    <div class="quiz-progress-label" id="q-progress">1 / 10</div>
+    <div class="quiz-subject-tag" id="q-subject"></div>
+  </div>
+  <div class="progress-bar-wrap">
+    <div class="progress-bar-fill" id="progress-fill" style="width:0%"></div>
+  </div>
+  <div class="dots-progress" id="dots-row"></div>
+  <div class="quiz-body" id="quiz-body">
+    <div class="question-num" id="q-num">Питання 1</div>
+    <div class="question-text" id="q-text"></div>
+    <div class="options-list" id="options-list"></div>
+    <div class="feedback-row" id="feedback"></div>
+    <button class="btn-next" id="btn-next" onclick="nextQuestion()">Далі →</button>
+  </div>
+  <div class="swipe-hint">Торкніться варіанту відповіді</div>
+</div>
+
+<!-- RESULT -->
+<div class="screen" id="screen-result">
+  <div class="result-eyebrow">Результат сесії</div>
+  <div class="result-score" id="result-score">0/10</div>
+  <div class="result-label" id="result-label">Гарна робота!</div>
+  <div class="result-detail" id="result-detail"></div>
+  <div class="result-actions">
+    <button class="btn-action btn-primary" onclick="startQuiz()">Ще 10 питань</button>
+    <button class="btn-action btn-secondary" onclick="showStart()">Змінити предмет</button>
+    <button class="btn-action btn-tiktok" onclick="openTikTok()">Відкрити TikTok / Instagram</button>
+  </div>
+</div>
+
+<script>
+let ALL_QUESTIONS = [];
+let SESSION = [];
+let currentIdx = 0;
+let results = []; // true/false per question
+let activeSubjects = new Set();
+let allSubjects = [];
+
+// ── LOAD ──
+async function loadQuestions() {
+  try {
+    setLoad(10);
+    const resp = await fetch('questions.json');
+    setLoad(50);
+    const data = await resp.json();
+    setLoad(90);
+    // data: [[subject, question, [answers], correct_text], ...]
+    ALL_QUESTIONS = data;
+    allSubjects = [...new Set(data.map(q => q[0]))].sort();
+    activeSubjects = new Set(allSubjects);
+    setLoad(100);
+    setTimeout(() => {
+      buildChips();
+      document.getElementById('total-count').textContent = ALL_QUESTIONS.length.toLocaleString('uk');
+      showScreen('screen-start');
+    }, 300);
+  } catch(e) {
+    document.getElementById('load-pct').textContent = 'Помилка завантаження. Переконайтесь що questions.json поруч з index.html';
+  }
+}
+
+function setLoad(pct) {
+  document.getElementById('load-bar').style.width = pct + '%';
+  document.getElementById('load-pct').textContent = pct + '%';
+}
+
+// ── CHIPS ──
+function buildChips() {
+  const el = document.getElementById('chips');
+  el.innerHTML = '';
+  // "All" chip
+  const allChip = document.createElement('button');
+  allChip.className = 'chip active';
+  allChip.textContent = 'Усі';
+  allChip.dataset.subject = '__all__';
+  allChip.onclick = () => toggleChip(allChip);
+  el.appendChild(allChip);
+
+  allSubjects.forEach(s => {
+    const ch = document.createElement('button');
+    ch.className = 'chip active';
+    ch.textContent = s;
+    ch.dataset.subject = s;
+    ch.onclick = () => toggleChip(ch);
+    el.appendChild(ch);
+  });
+}
+
+function toggleChip(chip) {
+  if (chip.dataset.subject === '__all__') {
+    const allActive = activeSubjects.size === allSubjects.length;
+    if (allActive) {
+      // deselect all
+      activeSubjects.clear();
+    } else {
+      activeSubjects = new Set(allSubjects);
+    }
+  } else {
+    if (activeSubjects.has(chip.dataset.subject)) {
+      activeSubjects.delete(chip.dataset.subject);
+    } else {
+      activeSubjects.add(chip.dataset.subject);
+    }
+  }
+  // update UI
+  document.querySelectorAll('.chip').forEach(c => {
+    if (c.dataset.subject === '__all__') {
+      c.classList.toggle('active', activeSubjects.size === allSubjects.length);
+    } else {
+      c.classList.toggle('active', activeSubjects.has(c.dataset.subject));
+    }
+  });
+}
+
+// ── QUIZ ──
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function startQuiz() {
+  const pool = ALL_QUESTIONS.filter(q => activeSubjects.has(q[0]));
+  if (pool.length < 10) {
+    alert('Оберіть більше предметів — недостатньо питань');
+    return;
+  }
+  SESSION = shuffle(pool).slice(0, 10);
+  currentIdx = 0;
+  results = [];
+  showScreen('screen-quiz');
+  renderQuestion();
+}
+
+function renderQuestion() {
+  const q = SESSION[currentIdx];
+  const [subject, text, answers, correctText] = q;
+
+  // Shuffle answers
+  const shuffled = shuffle(answers);
+  const correctIdx = shuffled.indexOf(correctText);
+
+  // Store for checking
+  SESSION[currentIdx]._shuffled = shuffled;
+  SESSION[currentIdx]._correctIdx = correctIdx;
+
+  // Header
+  document.getElementById('q-progress').textContent = `${currentIdx + 1} / 10`;
+  document.getElementById('q-subject').textContent = subject;
+  document.getElementById('progress-fill').style.width = `${(currentIdx / 10) * 100}%`;
+  document.getElementById('q-num').textContent = `Питання ${currentIdx + 1}`;
+  document.getElementById('q-text').textContent = text;
+
+  // Dots
+  const letters = ['A','B','C','D','E'];
+  const dotsEl = document.getElementById('dots-row');
+  dotsEl.innerHTML = '';
+  for (let i = 0; i < 10; i++) {
+    const d = document.createElement('div');
+    d.className = 'dot';
+    if (i < currentIdx) d.classList.add(results[i] ? 'done-ok' : 'done-fail');
+    if (i === currentIdx) d.classList.add('current');
+    dotsEl.appendChild(d);
+  }
+
+  // Options
+  const ol = document.getElementById('options-list');
+  ol.innerHTML = '';
+  shuffled.forEach((ans, idx) => {
+    const btn = document.createElement('button');
+    btn.className = 'option-btn';
+    btn.innerHTML = `<span class="option-letter">${letters[idx]}</span><span class="option-text">${ans}</span>`;
+    btn.onclick = () => selectAnswer(idx);
+    ol.appendChild(btn);
+  });
+
+  // Reset feedback
+  const fb = document.getElementById('feedback');
+  fb.className = 'feedback-row';
+  fb.textContent = '';
+
+  document.getElementById('btn-next').className = 'btn-next';
+
+  // Scroll to top
+  document.getElementById('quiz-body').scrollTop = 0;
+}
+
+function selectAnswer(idx) {
+  const q = SESSION[currentIdx];
+  const isCorrect = idx === q._correctIdx;
+  results[currentIdx] = isCorrect;
+
+  const letters = ['A','B','C','D','E'];
+  const btns = document.querySelectorAll('.option-btn');
+  btns.forEach((btn, i) => {
+    btn.disabled = true;
+    if (i === q._correctIdx) {
+      btn.classList.add('correct');
+    } else if (i === idx && !isCorrect) {
+      btn.classList.add('wrong');
+    } else {
+      btn.classList.add('dimmed');
+    }
+  });
+
+  const fb = document.getElementById('feedback');
+  if (isCorrect) {
+    fb.className = 'feedback-row show ok';
+    fb.textContent = '✓ Правильно';
+  } else {
+    fb.className = 'feedback-row show fail';
+    fb.textContent = `✗ Неправильно — правильна: ${letters[q._correctIdx]}`;
+  }
+
+  const btnNext = document.getElementById('btn-next');
+  btnNext.className = 'btn-next show';
+  btnNext.textContent = currentIdx < 9 ? 'Наступне питання →' : 'Переглянути результат →';
+}
+
+function nextQuestion() {
+  currentIdx++;
+  if (currentIdx >= 10) {
+    showResult();
+  } else {
+    renderQuestion();
+  }
+}
+
+// ── RESULT ──
+function showResult() {
+  const correct = results.filter(Boolean).length;
+  const pct = Math.round((correct / 10) * 100);
+
+  document.getElementById('result-score').textContent = `${correct}/10`;
+
+  const labels = ['Не здавайся', 'Слабкувато', 'Непогано', 'Добре', 'Відмінно!', 'Ідеально!'];
+  const labelIdx = Math.floor(pct / 20);
+  document.getElementById('result-label').textContent = labels[Math.min(labelIdx, 5)];
+  document.getElementById('result-detail').textContent = `${pct}% правильних відповідей`;
+
+  document.getElementById('progress-fill').style.width = '100%';
+  showScreen('screen-result');
+}
+
+function openTikTok() {
+  // Try TikTok app first, fallback to web
+  window.location.href = 'tiktok://';
+  setTimeout(() => {
+    window.location.href = 'https://www.tiktok.com';
+  }, 500);
+}
+
+function showStart() {
+  showScreen('screen-start');
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ── INIT ──
+loadQuestions();
+</script>
+</body>
+</html>
