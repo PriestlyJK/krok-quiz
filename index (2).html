@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>КРОК 1</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap');
+
+:root {
+  --bg: #1a1a1e;
+  --surface: #26262c;
+  --surface2: #2f2f36;
+  --border: #38383f;
+  --border2: #44444c;
+  --text: #dddad4;
+  --text-dim: #8a8790;
+  --text-dimmer: #4e4c55;
+  --accent: #b8956a;
+  --accent-dim: rgba(184,149,106,0.12);
+  --correct: #5a9e78;
+  --correct-bg: #0e2318;
+  --correct-border: #2a5e40;
+  --correct-text: #7ec99a;
+  --wrong: #9e5a5a;
+  --wrong-bg: #231010;
+  --wrong-border: #5e2a2a;
+  --wrong-text: #c97e7e;
+  --radius: 6px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Atkinson Hyperlegible', Georgia, sans-serif;
+  height: 100%;
+  overflow: hidden;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.screen { display: none; height: 100dvh; flex-direction: column; overflow: hidden; }
+.screen.active { display: flex; }
+
+/* ── SCROLLABLE BODY ── */
+.scroll-body {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── LOADING ── */
+#screen-load {
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+.load-label {
+  font-size: 13px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.load-track { width: 180px; height: 2px; background: var(--border); }
+.load-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.3s; }
+.load-pct { font-size: 12px; color: var(--text-dimmer); }
+
+/* ── HOME ── */
+#screen-home .scroll-body { padding: 28px 20px 40px; }
+
+.home-header { margin-bottom: 28px; }
+.home-title { font-size: 36px; font-weight: 700; color: var(--text); letter-spacing: -0.01em; line-height: 1.1; }
+.home-sub { font-size: 14px; color: var(--text-dim); margin-top: 5px; }
+
+.home-stats {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 28px;
+}
+.stat-card {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 12px;
+  text-align: center;
+}
+.stat-n { font-size: 22px; font-weight: 700; color: var(--accent); line-height: 1; }
+.stat-l { font-size: 11px; color: var(--text-dimmer); margin-top: 3px; text-transform: uppercase; letter-spacing: 0.1em; }
+
+/* Mistakes banner */
+.mistakes-banner {
+  background: var(--wrong-bg);
+  border: 1px solid var(--wrong-border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 20px;
+  display: none;
+  cursor: pointer;
+}
+.mistakes-banner.show { display: flex; align-items: center; justify-content: space-between; }
+.mb-left { }
+.mb-title { font-size: 14px; font-weight: 700; color: var(--wrong-text); }
+.mb-sub { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+.mb-arrow { font-size: 20px; color: var(--wrong-text); }
+
+.section-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--text-dimmer);
+  margin-bottom: 12px;
+  margin-top: 4px;
+}
+
+/* Subject cards */
+.subject-list { display: flex; flex-direction: column; gap: 10px; }
+
+.subject-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.subject-card:active { background: var(--surface2); border-color: var(--border2); }
+
+.sc-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.sc-name { font-size: 16px; font-weight: 700; color: var(--text); }
+.sc-count { font-size: 12px; color: var(--text-dim); }
+
+.sc-progress-wrap { height: 4px; background: var(--border); border-radius: 2px; margin-bottom: 8px; }
+.sc-progress-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.3s; }
+
+.sc-bottom { display: flex; align-items: center; justify-content: space-between; }
+.sc-parts-done { font-size: 12px; color: var(--text-dim); }
+.sc-arrow { font-size: 16px; color: var(--text-dimmer); }
+
+/* ── SUBJECT SCREEN ── */
+#screen-subject .scroll-body { padding: 20px 20px 40px; }
+
+.back-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 16px 20px 12px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.subject-screen-title { font-size: 26px; font-weight: 700; margin-bottom: 6px; }
+.subject-screen-sub { font-size: 13px; color: var(--text-dim); margin-bottom: 20px; }
+
+.chunk-list { display: flex; flex-direction: column; gap: 8px; }
+
+.chunk-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.chunk-card:active { background: var(--surface2); }
+.chunk-card.done { border-color: var(--correct-border); }
+
+.chunk-num-circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+.chunk-card.done .chunk-num-circle { background: var(--correct-border); color: var(--correct-text); }
+.chunk-card.in-progress .chunk-num-circle { background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent); }
+
+.chunk-info { flex: 1; }
+.chunk-title { font-size: 15px; font-weight: 700; color: var(--text); }
+.chunk-sub { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+
+.chunk-progress-wrap { height: 3px; background: var(--border); border-radius: 2px; margin-top: 8px; }
+.chunk-progress-fill { height: 100%; background: var(--accent); border-radius: 2px; }
+.chunk-progress-fill.done { background: var(--correct); }
+
+.chunk-right { text-align: right; flex-shrink: 0; }
+.chunk-pct { font-size: 13px; font-weight: 700; color: var(--text-dim); }
+.chunk-card.done .chunk-pct { color: var(--correct-text); }
+
+/* ── QUIZ ── */
+#screen-quiz { }
+
+.quiz-topbar {
+  padding: 14px 18px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.quiz-back { color: var(--accent); font-size: 22px; cursor: pointer; padding: 2px 8px 2px 0; }
+.quiz-meta { text-align: right; }
+.quiz-progress-txt { font-size: 14px; font-weight: 700; color: var(--text-dim); }
+.quiz-subject-txt { font-size: 11px; color: var(--text-dimmer); margin-top: 1px; text-transform: uppercase; letter-spacing: 0.1em; }
+
+.progress-track { height: 3px; background: var(--border); flex-shrink: 0; }
+.progress-fill { height: 100%; background: var(--accent); transition: width 0.4s; }
+
+.dots-row {
+  display: flex;
+  gap: 4px;
+  padding: 10px 18px;
+  flex-shrink: 0;
+  justify-content: center;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border); transition: background 0.2s; flex-shrink: 0; }
+.dot.ok { background: var(--correct); }
+.dot.fail { background: var(--wrong); }
+.dot.cur { background: var(--accent); }
+
+.quiz-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 18px 24px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.q-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.15em; color: var(--text-dimmer); margin-bottom: 10px; }
+
+.q-text {
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.6;
+  color: var(--text);
+  margin-bottom: 22px;
+}
+
+.options { display: flex; flex-direction: column; gap: 9px; }
+
+.opt {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 15px;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.12s;
+  text-align: left;
+  width: 100%;
+}
+.opt:active:not(:disabled) { background: var(--surface2); }
+
+.opt-letter {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-dim);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.opt-text { font-size: 16px; line-height: 1.5; color: var(--text); flex: 1; font-family: 'Atkinson Hyperlegible', sans-serif; }
+
+.opt.correct { background: var(--correct-bg); border-color: var(--correct-border); }
+.opt.correct .opt-letter { background: var(--correct-border); color: var(--correct-text); }
+.opt.correct .opt-text { color: var(--correct-text); }
+
+.opt.wrong { background: var(--wrong-bg); border-color: var(--wrong-border); }
+.opt.wrong .opt-letter { background: var(--wrong-border); color: var(--wrong-text); }
+.opt.wrong .opt-text { color: var(--wrong-text); }
+
+.opt.dimmed { opacity: 0.28; }
+
+.feedback {
+  margin-top: 16px;
+  padding: 13px 15px;
+  border-radius: var(--radius);
+  font-size: 14px;
+  font-weight: 700;
+  display: none;
+  align-items: center;
+  gap: 8px;
+}
+.feedback.show { display: flex; }
+.feedback.ok { background: var(--correct-bg); border: 1px solid var(--correct-border); color: var(--correct-text); }
+.feedback.fail { background: var(--wrong-bg); border: 1px solid var(--wrong-border); color: var(--wrong-text); }
+
+.btn-next {
+  margin-top: 14px;
+  width: 100%;
+  padding: 15px;
+  background: var(--surface);
+  border: 2px solid var(--border2);
+  border-radius: var(--radius);
+  color: var(--text-dim);
+  font-family: 'Atkinson Hyperlegible', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  display: none;
+  transition: all 0.12s;
+  text-align: center;
+}
+.btn-next.show { display: block; }
+.btn-next:active { background: var(--surface2); }
+
+.quiz-hint {
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-dimmer);
+  padding: 8px;
+  flex-shrink: 0;
+  letter-spacing: 0.1em;
+}
+
+/* ── RESULT ── */
+#screen-result {
+  align-items: center;
+  justify-content: center;
+  padding: 36px 24px;
+  overflow-y: auto;
+  text-align: center;
+}
+
+.result-mode { font-size: 11px; text-transform: uppercase; letter-spacing: 0.2em; color: var(--text-dimmer); margin-bottom: 18px; }
+.result-score { font-size: 72px; font-weight: 700; color: var(--accent); line-height: 1; margin-bottom: 6px; }
+.result-phrase { font-size: 16px; color: var(--text-dim); margin-bottom: 6px; }
+.result-pct { font-size: 13px; color: var(--text-dimmer); margin-bottom: 6px; }
+.result-note { font-size: 12px; color: var(--wrong-text); margin-bottom: 30px; min-height: 18px; }
+
+.breakdown { width: 100%; max-width: 320px; margin-bottom: 28px; text-align: left; }
+.bd-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.15em; color: var(--text-dimmer); margin-bottom: 12px; }
+.bd-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.bd-name { font-size: 11px; color: var(--text-dim); width: 70px; text-align: right; flex-shrink: 0; }
+.bd-track { flex: 1; height: 4px; background: var(--border); border-radius: 2px; }
+.bd-fill { height: 100%; border-radius: 2px; background: var(--correct); }
+.bd-fill.low { background: var(--wrong); }
+.bd-pct { font-size: 11px; color: var(--text-dimmer); width: 30px; text-align: right; }
+
+.result-btns { display: flex; flex-direction: column; gap: 9px; width: 100%; max-width: 320px; }
+.rbtn {
+  width: 100%;
+  padding: 15px;
+  border-radius: var(--radius);
+  font-family: 'Atkinson Hyperlegible', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.12s;
+}
+.rbtn:active { opacity: 0.75; }
+.rbtn-primary { background: var(--accent); color: #1a1a1e; }
+.rbtn-mistakes { background: transparent; border: 2px solid var(--wrong-border) !important; color: var(--wrong-text); display: none; }
+.rbtn-mistakes.show { display: block; }
+.rbtn-ghost { background: transparent; border: 2px solid var(--border) !important; color: var(--text-dim); }
+
+/* ── MISTAKES SCREEN ── */
+#screen-mistakes .scroll-body { padding: 20px 20px 40px; }
+.mistakes-subject-group { margin-bottom: 24px; }
+.msg-subj { font-size: 14px; font-weight: 700; color: var(--accent); margin-bottom: 10px; }
+.mistake-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin-bottom: 7px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.mi-q { font-size: 13px; color: var(--text); flex: 1; line-height: 1.4; }
+.mi-count { font-size: 11px; color: var(--wrong-text); flex-shrink: 0; white-space: nowrap; }
+.mi-delete { font-size: 18px; color: var(--text-dimmer); padding: 0 4px; cursor: pointer; flex-shrink: 0; }
+.mi-delete:active { color: var(--wrong-text); }
+</style>
+</head>
+<body>
+
+<!-- LOAD -->
+<div class="screen active" id="screen-load">
+  <div class="load-label">Завантаження</div>
+  <div class="load-track"><div class="load-fill" id="load-fill"></div></div>
+  <div class="load-pct" id="load-pct">0%</div>
+</div>
+
+<!-- HOME -->
+<div class="screen" id="screen-home">
+  <div class="scroll-body">
+    <div class="home-header">
+      <div class="home-title">КРОК 1</div>
+      <div class="home-sub">Ліцензійний інтегрований іспит</div>
+    </div>
+
+    <div class="home-stats">
+      <div class="stat-card">
+        <div class="stat-n" id="stat-total">—</div>
+        <div class="stat-l">питань</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-n" id="stat-mistakes">0</div>
+        <div class="stat-l">помилок</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-n" id="stat-sessions">0</div>
+        <div class="stat-l">сесій</div>
+      </div>
+    </div>
+
+    <div class="mistakes-banner" id="mistakes-banner" onclick="showMistakesScreen()">
+      <div class="mb-left">
+        <div class="mb-title">Робота над помилками</div>
+        <div class="mb-sub" id="mb-sub">0 питань чекають на повторення</div>
+      </div>
+      <div class="mb-arrow">→</div>
+    </div>
+
+    <div class="section-title">Предмети</div>
+    <div class="subject-list" id="subject-list"></div>
+  </div>
+</div>
+
+<!-- SUBJECT -->
+<div class="screen" id="screen-subject">
+  <div class="back-btn" onclick="showHome()">← Назад</div>
+  <div class="scroll-body">
+    <div class="subject-screen-title" id="subj-title"></div>
+    <div class="subject-screen-sub" id="subj-sub"></div>
+    <div class="chunk-list" id="chunk-list"></div>
+  </div>
+</div>
+
+<!-- QUIZ -->
+<div class="screen" id="screen-quiz">
+  <div class="quiz-topbar">
+    <div class="quiz-back" onclick="confirmQuitQuiz()">←</div>
+    <div class="quiz-meta">
+      <div class="quiz-progress-txt" id="q-prog">1 / 10</div>
+      <div class="quiz-subject-txt" id="q-subj"></div>
+    </div>
+  </div>
+  <div class="progress-track"><div class="progress-fill" id="q-fill" style="width:0%"></div></div>
+  <div class="dots-row" id="dots-row"></div>
+  <div class="quiz-body" id="quiz-body">
+    <div class="q-label" id="q-label">Питання 1</div>
+    <div class="q-text" id="q-text"></div>
+    <div class="options" id="options"></div>
+    <div class="feedback" id="feedback"></div>
+    <button class="btn-next" id="btn-next" onclick="nextQ()"></button>
+  </div>
+  <div class="quiz-hint">Оберіть варіант відповіді</div>
+</div>
+
+<!-- RESULT -->
+<div class="screen" id="screen-result">
+  <div class="result-mode" id="r-mode">Результат</div>
+  <div class="result-score" id="r-score">0/10</div>
+  <div class="result-phrase" id="r-phrase"></div>
+  <div class="result-pct" id="r-pct"></div>
+  <div class="result-note" id="r-note"></div>
+  <div class="breakdown" id="r-breakdown"></div>
+  <div class="result-btns">
+    <button class="rbtn rbtn-primary" id="r-btn-repeat" onclick="repeatChunk()">Пройти ще раз</button>
+    <button class="rbtn rbtn-mistakes show" id="r-btn-mistakes" onclick="startMistakesQuiz()">Помилки цієї частини</button>
+    <button class="rbtn rbtn-ghost" onclick="goBackFromResult()">← Назад</button>
+    <button class="rbtn rbtn-ghost" onclick="goApp()">Відкрити TikTok →</button>
+  </div>
+</div>
+
+<!-- MISTAKES SCREEN -->
+<div class="screen" id="screen-mistakes">
+  <div class="back-btn" onclick="showHome()">← Назад</div>
+  <div class="scroll-body">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <div>
+        <div style="font-size:22px;font-weight:700">Помилки</div>
+        <div style="font-size:13px;color:var(--text-dim);margin-top:3px" id="mistakes-screen-sub"></div>
+      </div>
+      <button onclick="startMistakesQuiz()" style="background:var(--wrong-bg);border:2px solid var(--wrong-border);color:var(--wrong-text);padding:10px 14px;border-radius:var(--radius);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">Тренувати →</button>
+    </div>
+    <div style="font-size:12px;color:var(--text-dimmer);margin-bottom:20px">Питання залишаються поки не видалиш вручну (×)</div>
+    <div id="mistakes-list"></div>
+  </div>
+</div>
+
+<script>
+// ══ STATE ══
+let DB = {}; // { subject: [[q,q,...], [q,...], ...] }
+let currentSubject = '';
+let currentChunkIdx = 0;
+let currentMode = 'chunk'; // 'chunk' | 'mistakes'
+let SESSION = [];
+let sessionIdx = 0;
+let sessionResults = [];
+
+// ══ STORAGE ══
+const load = k => { try { return JSON.parse(localStorage.getItem(k)||'null'); } catch { return null; } };
+const save = (k,v) => { try { localStorage.setItem(k,JSON.stringify(v)); } catch {} };
+
+// Progress: { "subject|chunkIdx": { seen: Set(indices as array), correct: Set, wrong: Set } }
+function getProgress(subject, chunkIdx) {
+  const key = subject+'|'+chunkIdx;
+  const raw = load('prog_'+key);
+  if (!raw) return { seen: [], correct: [], wrong: [] };
+  return raw;
+}
+function saveProgress(subject, chunkIdx, prog) {
+  const key = subject+'|'+chunkIdx;
+  save('prog_'+key, prog);
+}
+
+// Mistakes: { key: {subject,chunkIdx,question,answers,correctText,wrongCount} }
+function getMistakes() { return load('krok_mistakes') || {}; }
+function saveMistakesData(m) { save('krok_mistakes', m); }
+
+function qKey(q) { return q[0]+'|'+q[1].substring(0,60); }
+
+function addMistake(q, chunkIdx) {
+  const m = getMistakes(), k = qKey(q);
+  if (m[k]) { m[k].wrongCount++; }
+  else { m[k] = { subject:q[0], chunkIdx, question:q[1], answers:q[2], correctText:q[3], wrongCount:1 }; }
+  saveMistakesData(m);
+}
+function deleteMistake(k) {
+  const m = getMistakes();
+  delete m[k];
+  saveMistakesData(m);
+  renderMistakesScreen();
+  updateHomeUI();
+}
+
+function getSessions() { return parseInt(localStorage.getItem('krok_sessions')||'0'); }
+function incSessions() { localStorage.setItem('krok_sessions', getSessions()+1); }
+
+// ══ LOAD ══
+async function init() {
+  try {
+    setLoad(10);
+    const r = await fetch('questions.json');
+    setLoad(50);
+    DB = await r.json();
+    setLoad(95);
+    setTimeout(() => { buildHomeUI(); showScreen('screen-home'); }, 300);
+  } catch(e) {
+    document.getElementById('load-pct').textContent = 'Помилка — перевір що questions.json поруч з index.html';
+  }
+}
+function setLoad(p) {
+  document.getElementById('load-fill').style.width = p+'%';
+  document.getElementById('load-pct').textContent = p+'%';
+}
+
+// ══ HOME ══
+function buildHomeUI() {
+  const total = Object.values(DB).reduce((s,chunks) => s + chunks.reduce((a,c)=>a+c.length,0), 0);
+  document.getElementById('stat-total').textContent = total.toLocaleString('uk');
+  updateHomeUI();
+
+  const list = document.getElementById('subject-list');
+  list.innerHTML = '';
+  Object.keys(DB).sort().forEach(subject => {
+    const chunks = DB[subject];
+    const totalQ = chunks.reduce((s,c)=>s+c.length, 0);
+    let doneChunks = 0;
+    let totalSeen = 0;
+    chunks.forEach((chunk, ci) => {
+      const prog = getProgress(subject, ci);
+      totalSeen += prog.seen.length;
+      if (prog.seen.length === chunk.length) doneChunks++;
+    });
+    const pct = totalQ > 0 ? Math.round((totalSeen/totalQ)*100) : 0;
+
+    const card = document.createElement('div');
+    card.className = 'subject-card';
+    card.innerHTML = `
+      <div class="sc-top">
+        <div class="sc-name">${subject}</div>
+        <div class="sc-count">${totalQ} питань · ${chunks.length} частин</div>
+      </div>
+      <div class="sc-progress-wrap"><div class="sc-progress-fill" style="width:${pct}%"></div></div>
+      <div class="sc-bottom">
+        <div class="sc-parts-done">${doneChunks}/${chunks.length} частин пройдено · ${pct}%</div>
+        <div class="sc-arrow">›</div>
+      </div>`;
+    card.onclick = () => showSubject(subject);
+    list.appendChild(card);
+  });
+}
+
+function updateHomeUI() {
+  const m = getMistakes();
+  const cnt = Object.keys(m).length;
+  document.getElementById('stat-mistakes').textContent = cnt;
+  document.getElementById('stat-sessions').textContent = getSessions();
+  const banner = document.getElementById('mistakes-banner');
+  if (cnt > 0) {
+    banner.classList.add('show');
+    document.getElementById('mb-sub').textContent = `${cnt} питань чекають на повторення`;
+  } else {
+    banner.classList.remove('show');
+  }
+}
+
+// ══ SUBJECT ══
+function showSubject(subject) {
+  currentSubject = subject;
+  const chunks = DB[subject];
+  document.getElementById('subj-title').textContent = subject;
+  document.getElementById('subj-sub').textContent = `${chunks.reduce((s,c)=>s+c.length,0)} питань · ${chunks.length} частин по ~150`;
+
+  const list = document.getElementById('chunk-list');
+  list.innerHTML = '';
+
+  chunks.forEach((chunk, ci) => {
+    const prog = getProgress(subject, ci);
+    const seen = prog.seen.length;
+    const correct = prog.correct.length;
+    const isDone = seen === chunk.length;
+    const hasProgress = seen > 0 && !isDone;
+    const pct = chunk.length > 0 ? Math.round((seen/chunk.length)*100) : 0;
+    const accPct = seen > 0 ? Math.round((correct/seen)*100) : 0;
+
+    const card = document.createElement('div');
+    card.className = 'chunk-card' + (isDone ? ' done' : hasProgress ? ' in-progress' : '');
+
+    let statusText = seen === 0 ? 'Не розпочато' : isDone ? `Завершено · ${accPct}% правильних` : `${seen}/${chunk.length} пройдено · ${accPct}% правильних`;
+
+    card.innerHTML = `
+      <div class="chunk-num-circle">${ci+1}</div>
+      <div class="chunk-info">
+        <div class="chunk-title">Частина ${ci+1}</div>
+        <div class="chunk-sub">${chunk.length} питань · ${statusText}</div>
+        ${seen > 0 ? `<div class="chunk-progress-wrap"><div class="chunk-progress-fill ${isDone?'done':''}" style="width:${pct}%"></div></div>` : ''}
+      </div>
+      <div class="chunk-right">
+        <div class="chunk-pct">${seen > 0 ? pct+'%' : ''}</div>
+      </div>`;
+    card.onclick = () => startChunk(subject, ci);
+    list.appendChild(card);
+  });
+
+  showScreen('screen-subject');
+}
+
+// ══ QUIZ ══
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i=a.length-1;i>0;i--) { const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+
+function startChunk(subject, chunkIdx) {
+  currentSubject = subject;
+  currentChunkIdx = chunkIdx;
+  currentMode = 'chunk';
+
+  const chunk = DB[subject][chunkIdx];
+  const prog = getProgress(subject, chunkIdx);
+  const seenSet = new Set(prog.seen);
+
+  // Unseen first, then seen (for review), pick 10
+  const unseen = chunk.map((_,i)=>i).filter(i=>!seenSet.has(i));
+  const seen = chunk.map((_,i)=>i).filter(i=>seenSet.has(i));
+
+  // Prioritize unseen, mix in some mistakes
+  const mistakeKeys = new Set(Object.keys(getMistakes()));
+  let pool = shuffle(unseen);
+
+  // If less than 10 unseen, add seen questions (mistakes first)
+  if (pool.length < 10) {
+    const seenWithMistakes = shuffle(seen).sort((a,b) => {
+      const qa = chunk[a], qb = chunk[b];
+      const am = mistakeKeys.has(qKey(qa)) ? 1 : 0;
+      const bm = mistakeKeys.has(qKey(qb)) ? 1 : 0;
+      return bm - am;
+    });
+    pool = [...pool, ...seenWithMistakes];
+  }
+
+  SESSION = pool.slice(0,10).map(i => ({...chunk[i], _origIdx: i}));
+  // Flatten to array format
+  SESSION = pool.slice(0,10).map(i => chunk[i]);
+  sessionIdx = 0;
+  sessionResults = [];
+  incSessions();
+
+  document.getElementById('q-subj').textContent = subject + ' · Ч.' + (chunkIdx+1);
+  showScreen('screen-quiz');
+  renderQ();
+}
+
+function startMistakesQuiz() {
+  const m = getMistakes();
+  let pool = Object.values(m);
+
+  // Filter by current subject if coming from subject screen
+  // Actually show all mistakes for global practice
+  if (!pool.length) { alert('Немає помилок!'); return; }
+
+  // Sort by wrongCount desc
+  pool.sort((a,b) => b.wrongCount - a.wrongCount);
+  pool = shuffle(pool.slice(0, Math.min(pool.length, 30))).slice(0,10);
+  SESSION = pool.map(mi => [mi.subject, mi.question, mi.answers, mi.correctText]);
+
+  currentMode = 'mistakes';
+  sessionIdx = 0;
+  sessionResults = [];
+  incSessions();
+
+  document.getElementById('q-subj').textContent = 'Робота над помилками';
+  showScreen('screen-quiz');
+  renderQ();
+}
+
+function renderQ() {
+  const q = SESSION[sessionIdx];
+  const answers = Array.isArray(q) ? q[2] : q.answers;
+  const correctText = Array.isArray(q) ? q[3] : q.correctText;
+  const qText = Array.isArray(q) ? q[1] : q.question;
+  const subject = Array.isArray(q) ? q[0] : q.subject;
+
+  const shuffled = shuffle(answers);
+  const correctIdx = shuffled.indexOf(correctText);
+  SESSION[sessionIdx]._sh = shuffled;
+  SESSION[sessionIdx]._ci = correctIdx;
+
+  const total = SESSION.length;
+  document.getElementById('q-prog').textContent = `${sessionIdx+1} / ${total}`;
+  document.getElementById('q-fill').style.width = `${(sessionIdx/total)*100}%`;
+  document.getElementById('q-label').textContent = `Питання ${sessionIdx+1}`;
+  document.getElementById('q-text').textContent = qText;
+
+  // Dots
+  const dotsEl = document.getElementById('dots-row');
+  dotsEl.innerHTML = '';
+  for (let i=0;i<total;i++) {
+    const d = document.createElement('div');
+    d.className = 'dot'+(i<sessionIdx?(sessionResults[i]?' ok':' fail'):i===sessionIdx?' cur':'');
+    dotsEl.appendChild(d);
+  }
+
+  // Options
+  const letters = ['А','Б','В','Г','Д'];
+  const optEl = document.getElementById('options');
+  optEl.innerHTML = '';
+  shuffled.forEach((ans, idx) => {
+    const btn = document.createElement('button');
+    btn.className = 'opt';
+    btn.innerHTML = `<div class="opt-letter">${letters[idx]}</div><div class="opt-text">${ans}</div>`;
+    btn.onclick = () => selectOpt(idx);
+    optEl.appendChild(btn);
+  });
+
+  document.getElementById('feedback').className = 'feedback';
+  document.getElementById('btn-next').className = 'btn-next';
+  document.getElementById('quiz-body').scrollTop = 0;
+}
+
+function selectOpt(idx) {
+  const q = SESSION[sessionIdx];
+  const isCorrect = idx === q._ci;
+  sessionResults[sessionIdx] = isCorrect;
+
+  // Update progress for chunk mode
+  if (currentMode === 'chunk') {
+    const chunk = DB[currentSubject][currentChunkIdx];
+    const origIdx = chunk.findIndex(c => {
+      const qt = Array.isArray(q) ? q[1] : q.question;
+      return c[1] === qt;
+    });
+    if (origIdx >= 0) {
+      const prog = getProgress(currentSubject, currentChunkIdx);
+      const seenSet = new Set(prog.seen);
+      const correctSet = new Set(prog.correct);
+      const wrongSet = new Set(prog.wrong);
+      seenSet.add(origIdx);
+      if (isCorrect) correctSet.add(origIdx); else wrongSet.add(origIdx);
+      saveProgress(currentSubject, currentChunkIdx, {
+        seen: [...seenSet], correct: [...correctSet], wrong: [...wrongSet]
+      });
+    }
+  }
+
+  // Track mistakes — always add on wrong, never auto-delete
+  if (!isCorrect) {
+    addMistake(Array.isArray(q) ? q : [q.subject, q.question, q.answers, q.correctText], currentChunkIdx);
+  }
+
+  const letters = ['А','Б','В','Г','Д'];
+  document.querySelectorAll('.opt').forEach((btn, i) => {
+    btn.disabled = true;
+    if (i === q._ci) btn.classList.add('correct');
+    else if (i === idx && !isCorrect) btn.classList.add('wrong');
+    else btn.classList.add('dimmed');
+  });
+
+  const fb = document.getElementById('feedback');
+  fb.className = 'feedback show '+(isCorrect?'ok':'fail');
+  fb.textContent = isCorrect ? '✓ Правильно!' : `✗ Правильна: ${letters[q._ci]}`;
+
+  const bn = document.getElementById('btn-next');
+  bn.className = 'btn-next show';
+  bn.textContent = sessionIdx < SESSION.length-1 ? 'Наступне питання →' : 'Переглянути результат →';
+}
+
+function nextQ() {
+  sessionIdx++;
+  if (sessionIdx >= SESSION.length) showResult(); else renderQ();
+}
+
+function confirmQuitQuiz() {
+  if (confirm('Вийти з тесту? Прогрес цієї сесії буде збережено.')) goBackFromResult();
+}
+
+// ══ RESULT ══
+function showResult() {
+  const correct = sessionResults.filter(Boolean).length;
+  const total = SESSION.length;
+  const pct = Math.round((correct/total)*100);
+  const wrong = total-correct;
+
+  document.getElementById('r-mode').textContent = currentMode==='mistakes' ? 'Робота над помилками' : `${currentSubject} · Частина ${currentChunkIdx+1}`;
+  document.getElementById('r-score').textContent = `${correct}/${total}`;
+  document.getElementById('r-pct').textContent = `${pct}% правильних`;
+  document.getElementById('q-fill').style.width = '100%';
+
+  const phrases = ['Не здавайся, практикуйся!','Ще є куди рости','Непогано, продовжуй!','Добре!','Відмінно!','Ідеально! 🔥'];
+  document.getElementById('r-phrase').textContent = phrases[Math.min(Math.floor(pct/20),5)];
+
+  if (wrong > 0) document.getElementById('r-note').textContent = `+${wrong} додано до помилок на повторення`;
+  else document.getElementById('r-note').textContent = '';
+
+  // Breakdown only for mistakes mode (multiple subjects)
+  const bd = document.getElementById('r-breakdown');
+  if (currentMode === 'mistakes') {
+    const ss = {};
+    SESSION.forEach((q,i) => {
+      const s = Array.isArray(q) ? q[0] : q.subject;
+      if (!ss[s]) ss[s]={ok:0,t:0};
+      ss[s].t++; if(sessionResults[i]) ss[s].ok++;
+    });
+    const entries = Object.entries(ss);
+    if (entries.length > 1) {
+      bd.innerHTML = `<div class="bd-title">По предметах</div>`+entries.map(([s,st])=>{
+        const p=Math.round((st.ok/st.t)*100);
+        return `<div class="bd-row"><div class="bd-name">${s}</div><div class="bd-track"><div class="bd-fill ${p<60?'low':''}" style="width:${p}%"></div></div><div class="bd-pct">${p}%</div></div>`;
+      }).join('');
+    } else bd.innerHTML='';
+  } else bd.innerHTML='';
+
+  // Show mistakes button only if there were mistakes in this chunk
+  const chunkMistakes = Object.values(getMistakes()).filter(m => m.subject===currentSubject && m.chunkIdx===currentChunkIdx);
+  const rBtnM = document.getElementById('r-btn-mistakes');
+  if (chunkMistakes.length > 0 && currentMode !== 'mistakes') {
+    rBtnM.classList.add('show');
+    rBtnM.textContent = `Помилки цієї частини (${chunkMistakes.length})`;
+  } else {
+    rBtnM.classList.remove('show');
+  }
+
+  updateHomeUI();
+  showScreen('screen-result');
+}
+
+function repeatChunk() {
+  if (currentMode === 'mistakes') { startMistakesQuiz(); return; }
+  startChunk(currentSubject, currentChunkIdx);
+}
+
+function goBackFromResult() {
+  if (currentMode === 'mistakes') { showHome(); return; }
+  showSubject(currentSubject);
+}
+
+// ══ MISTAKES SCREEN ══
+function showMistakesScreen() {
+  renderMistakesScreen();
+  showScreen('screen-mistakes');
+}
+
+function renderMistakesScreen() {
+  const m = getMistakes();
+  const entries = Object.entries(m);
+  document.getElementById('mistakes-screen-sub').textContent = `${entries.length} питань збережено`;
+
+  if (!entries.length) {
+    document.getElementById('mistakes-list').innerHTML = '<div style="color:var(--text-dim);font-size:14px;text-align:center;padding:40px 0">Помилок немає — чудово!</div>';
+    return;
+  }
+
+  // Group by subject
+  const bySubj = {};
+  entries.forEach(([k, mi]) => {
+    if (!bySubj[mi.subject]) bySubj[mi.subject] = [];
+    bySubj[mi.subject].push([k, mi]);
+  });
+
+  let html = '';
+  Object.entries(bySubj).sort().forEach(([subj, list]) => {
+    html += `<div class="mistakes-subject-group"><div class="msg-subj">${subj} (${list.length})</div>`;
+    list.sort((a,b)=>b[1].wrongCount-a[1].wrongCount).forEach(([k,mi]) => {
+      const qShort = mi.question.length > 90 ? mi.question.substring(0,90)+'…' : mi.question;
+      html += `<div class="mistake-item">
+        <div class="mi-q">${qShort}</div>
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+          <div class="mi-count">×${mi.wrongCount}</div>
+          <div class="mi-delete" onclick="deleteMistake('${k.replace(/'/g,"\\'")}')">×</div>
+        </div>
+      </div>`;
+    });
+    html += '</div>';
+  });
+  document.getElementById('mistakes-list').innerHTML = html;
+}
+
+// ══ NAV ══
+function showHome() {
+  buildHomeUI();
+  showScreen('screen-home');
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function goApp() {
+  window.location.href='tiktok://';
+  setTimeout(()=>{ window.location.href='https://www.tiktok.com'; }, 500);
+}
+
+init();
+</script>
+</body>
+</html>
