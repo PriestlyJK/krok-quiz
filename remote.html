@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>КРОК · Пульт v3</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; user-select: none; }
+html, body { background: #1a1a1e; color: #dddad4; font-family: 'Helvetica Neue', Arial, sans-serif; height: 100%; overflow: hidden; touch-action: manipulation; }
+
+/* SCREENS */
+.scr { display: none; height: 100dvh; flex-direction: column; align-items: center; justify-content: center; padding: 24px; text-align: center; gap: 16px; }
+.scr.on { display: flex; }
+#scr-remote { padding: 0; align-items: stretch; justify-content: flex-start; }
+
+/* CONNECT / WAIT */
+.spinner { width: 36px; height: 36px; border: 3px solid #38383f; border-top-color: #b8956a; border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.big-code { font-size: 56px; font-weight: 700; color: #b8956a; background: #26262c; border: 2px solid #38383f; border-radius: 12px; padding: 16px 28px; letter-spacing: .15em; }
+.title { font-size: 20px; font-weight: 700; color: #8a8790; }
+.sub { font-size: 14px; color: #4e4c55; }
+
+/* REMOTE HEADER */
+.r-header { padding: 10px 16px; border-bottom: 1px solid #38383f; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+.r-prog { font-size: 15px; font-weight: 700; color: #8a8790; }
+.r-subj { font-size: 11px; color: #4e4c55; text-transform: uppercase; letter-spacing: .1em; }
+.r-track { height: 3px; background: #38383f; flex-shrink: 0; }
+.r-fill { height: 100%; background: #b8956a; transition: width .4s; }
+
+/* BIG BUTTONS */
+.btn-grid { flex: 1; display: grid; grid-template-rows: repeat(5, 1fr); gap: 7px; padding: 10px 10px 8px; }
+.abtn {
+  display: flex; align-items: center; justify-content: center;
+  background: #26262c; border: 3px solid #38383f; border-radius: 14px;
+  cursor: pointer; transition: transform .08s, background .08s;
+  font-size: 54px; font-weight: 700; color: #8a8790;
+  -webkit-tap-highlight-color: transparent;
+}
+.abtn:active:not([disabled]) { transform: scale(0.94); }
+.abtn[data-ci="0"] { background: #1a2d40; border-color: #3d5a80; color: #a8c4e0; }
+.abtn[data-ci="1"] { background: #2a1f3d; border-color: #5c4a7a; color: #c4a8e0; }
+.abtn[data-ci="2"] { background: #3d2d1a; border-color: #7a5c3a; color: #e0c4a0; }
+.abtn[data-ci="3"] { background: #1a3028; border-color: #3a6b5c; color: #a0d4c4; }
+.abtn[data-ci="4"] { background: #301a28; border-color: #6b4a5c; color: #d4a0c0; }
+.abtn.sel { border-color: #b8956a; background: rgba(184,149,106,.15); color: #b8956a; }
+.abtn.ok  { border-color: #2a5e40; background: #0e2318; color: #7ec99a; }
+.abtn.bad { border-color: #5e2a2a; background: #231010; color: #c97e7e; }
+.abtn.dim { opacity: .2; }
+
+/* NEXT */
+.next-wrap { padding: 8px 10px 22px; flex-shrink: 0; display: none; }
+.next-wrap.on { display: block; }
+.next-btn { width: 100%; padding: 20px; border-radius: 14px; background: #b8956a; color: #1a1a1e; font-size: 20px; font-weight: 700; border: none; cursor: pointer; }
+.next-btn:active { opacity: .8; }
+
+/* RESULT */
+#scr-result { gap: 12px; }
+.r-score { font-size: 80px; font-weight: 700; color: #b8956a; line-height: 1; }
+.r-label { font-size: 18px; color: #8a8790; }
+</style>
+</head>
+<body>
+
+<div class="scr on" id="scr-connect">
+  <div class="spinner"></div>
+  <div class="title">Підключення...</div>
+</div>
+
+<div class="scr" id="scr-wait">
+  <div class="sub">КОД СЕСІЇ</div>
+  <div class="big-code" id="w-code">—</div>
+  <div class="title">Чекаємо на ноутбук...</div>
+  <div class="sub">Введи цей код на головному екрані</div>
+</div>
+
+<div class="scr" id="scr-remote">
+  <div class="r-header">
+    <div class="r-prog" id="r-prog">—</div>
+    <div class="r-subj" id="r-subj"></div>
+  </div>
+  <div class="r-track"><div class="r-fill" id="r-fill" style="width:0%"></div></div>
+  <div class="btn-grid" id="btn-grid"></div>
+  <div class="next-wrap" id="next-wrap">
+    <button class="next-btn" onclick="sendNext()">ДАЛІ →</button>
+  </div>
+</div>
+
+<div class="scr" id="scr-result">
+  <div class="r-score" id="r-score">—</div>
+  <div class="r-label" id="r-label">Результат</div>
+</div>
+
+<script src="https://cdn.ably.com/lib/ably.min-2.js"></script>
+<script>
+const KEY = 'H-vEJw.-1zApQ:p1J75J03B7p-dUauC0MmMdci9oxuFNgN9Y2ZC4tSe6s';
+const LETTERS = ['А','Б','В','Г','Д'];
+let ably, ch, code = '', answered = false;
+
+function show(id) {
+  document.querySelectorAll('.scr').forEach(s => s.classList.remove('on'));
+  document.getElementById(id).classList.add('on');
+}
+
+async function init() {
+  show('scr-connect');
+  const p = new URLSearchParams(window.location.search);
+  code = p.get('code') || String(Math.floor(1000+Math.random()*9000));
+  window.history.replaceState({}, '', '?v=3&code='+code);
+
+  ably = new Ably.Realtime({ key: KEY });
+  await new Promise(r => ably.connection.once('connected', r));
+  ch = ably.channels.get('krok-'+code);
+
+  ch.subscribe('question', msg => { renderQ(msg.data); show('scr-remote'); });
+  ch.subscribe('result',   msg => { showResult(msg.data); });
+  ch.subscribe('ping',     ()  => { ch.publish('pong', {}); });
+
+  document.getElementById('w-code').textContent = code;
+  show('scr-wait');
+}
+
+function renderQ(data) {
+  answered = false;
+  document.getElementById('r-prog').textContent = `${data.idx+1} / ${data.total}`;
+  document.getElementById('r-subj').textContent = data.subject || '';
+  document.getElementById('r-fill').style.width = `${(data.idx/data.total)*100}%`;
+  document.getElementById('next-wrap').className = 'next-wrap';
+
+  const grid = document.getElementById('btn-grid');
+  grid.innerHTML = '';
+  (data.answers || []).forEach((_, idx) => {
+    const btn = document.createElement('button');
+    btn.className = 'abtn';
+    btn.setAttribute('data-ci', idx);
+    btn.textContent = LETTERS[idx];
+    btn.onclick = () => pick(idx, data);
+    grid.appendChild(btn);
+  });
+}
+
+function pick(idx, data) {
+  if (answered) return;
+  answered = true;
+  const btns = document.querySelectorAll('.abtn');
+  btns.forEach((b, i) => {
+    b.setAttribute('disabled', '');
+    if (i === data.correctIdx) b.className = 'abtn ok';
+    else if (i === idx) b.className = 'abtn bad';
+    else b.className = 'abtn dim';
+  });
+  document.getElementById('next-wrap').className = 'next-wrap on';
+  ch.publish('answer', { idx, correct: idx === data.correctIdx });
+}
+
+function sendNext() { ch.publish('next', {}); }
+
+function showResult(data) {
+  const pct = Math.round((data.correct/data.total)*100);
+  document.getElementById('r-score').textContent = `${data.correct}/${data.total}`;
+  const labels = ['Не здавайся!','Більше практики','Непогано','Добре!','Відмінно!','Ідеально! 🔥'];
+  document.getElementById('r-label').textContent = labels[Math.min(Math.floor(pct/20),5)];
+  show('scr-result');
+}
+
+init();
+</script>
+</body>
+</html>

@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>КРОК 1</title>
+<script src="https://cdn.ably.com/lib/ably.min-2.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap');
 
@@ -26,7 +27,16 @@
   --wrong-bg: #231010;
   --wrong-border: #5e2a2a;
   --wrong-text: #c97e7e;
-  --radius: 6px;
+  --opt-a: #3d5a80;
+  --opt-a-text: #a8c4e0;
+  --opt-b: #5c4a7a;
+  --opt-b-text: #c4a8e0;
+  --opt-c: #7a5c3a;
+  --opt-c-text: #e0c4a0;
+  --opt-d: #3a6b5c;
+  --opt-d-text: #a0d4c4;
+  --opt-e: #6b4a5c;
+  --opt-e-text: #d4a0c0;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -238,28 +248,50 @@ html, body {
 
 .quiz-body {
   flex: 1;
-  overflow-y: auto;
-  padding: 20px 18px 24px;
-  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-.q-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.15em; color: var(--text-dimmer); margin-bottom: 10px; }
+/* Question area — big, centered */
+.q-top {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 32px 16px;
+  text-align: center;
+  overflow-y: auto;
+}
+
+.q-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.15em; color: var(--text-dimmer); margin-bottom: 12px; }
 
 .q-text {
-  font-size: 18px;
-  font-weight: 400;
-  line-height: 1.6;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.5;
   color: var(--text);
-  margin-bottom: 22px;
 }
 
-.options { display: flex; flex-direction: column; gap: 9px; }
+/* Options grid — bottom, 2x2 + 1 or column */
+.options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: repeat(3, auto);
+  gap: 8px;
+  padding: 10px 12px 16px;
+  flex-shrink: 0;
+}
+
+/* 5th option spans full width and centered */
+.opt:nth-child(5) { grid-column: 1 / -1; justify-content: center; max-width: 50%; margin: 0 auto; width: 100%; }
 
 .opt {
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 14px 15px;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 14px;
   background: var(--surface);
   border: 2px solid var(--border);
   border-radius: var(--radius);
@@ -267,24 +299,24 @@ html, body {
   transition: all 0.12s;
   text-align: left;
   width: 100%;
+  min-height: 58px;
 }
-.opt:active:not(:disabled) { background: var(--surface2); }
+.opt:active:not(:disabled) { background: var(--surface2); transform: scale(0.98); }
 
 .opt-letter {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
   background: var(--border);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--text-dim);
   flex-shrink: 0;
-  margin-top: 1px;
 }
-.opt-text { font-size: 16px; line-height: 1.5; color: var(--text); flex: 1; font-family: 'Atkinson Hyperlegible', sans-serif; }
+.opt-text { font-size: 14px; line-height: 1.4; color: var(--text); flex: 1; font-family: 'Atkinson Hyperlegible', sans-serif; font-weight: 700; }
 
 .opt.correct { background: var(--correct-bg); border-color: var(--correct-border); }
 .opt.correct .opt-letter { background: var(--correct-border); color: var(--correct-text); }
@@ -296,44 +328,57 @@ html, body {
 
 .opt.dimmed { opacity: 0.28; }
 
+/* Answer colors */
+.opt[data-ci="0"] { border-color: var(--opt-a); }
+.opt[data-ci="0"] .opt-letter { background: var(--opt-a); color: var(--opt-a-text); }
+.opt[data-ci="1"] { border-color: var(--opt-b); }
+.opt[data-ci="1"] .opt-letter { background: var(--opt-b); color: var(--opt-b-text); }
+.opt[data-ci="2"] { border-color: var(--opt-c); }
+.opt[data-ci="2"] .opt-letter { background: var(--opt-c); color: var(--opt-c-text); }
+.opt[data-ci="3"] { border-color: var(--opt-d); }
+.opt[data-ci="3"] .opt-letter { background: var(--opt-d); color: var(--opt-d-text); }
+.opt[data-ci="4"] { border-color: var(--opt-e); }
+.opt[data-ci="4"] .opt-letter { background: var(--opt-e); color: var(--opt-e-text); }
+
 .feedback {
-  margin-top: 16px;
-  padding: 13px 15px;
+  margin: 0 12px 8px;
+  padding: 12px 15px;
   border-radius: var(--radius);
   font-size: 14px;
   font-weight: 700;
   display: none;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
 }
 .feedback.show { display: flex; }
 .feedback.ok { background: var(--correct-bg); border: 1px solid var(--correct-border); color: var(--correct-text); }
 .feedback.fail { background: var(--wrong-bg); border: 1px solid var(--wrong-border); color: var(--wrong-text); }
 
 .btn-next {
-  margin-top: 14px;
-  width: 100%;
+  margin: 0 12px 16px;
   padding: 15px;
-  background: var(--surface);
-  border: 2px solid var(--border2);
+  background: var(--accent);
+  border: none;
   border-radius: var(--radius);
-  color: var(--text-dim);
+  color: #1a1a1e;
   font-family: 'Atkinson Hyperlegible', sans-serif;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
   cursor: pointer;
   display: none;
   transition: all 0.12s;
   text-align: center;
+  flex-shrink: 0;
 }
 .btn-next.show { display: block; }
-.btn-next:active { background: var(--surface2); }
+.btn-next:active { opacity: 0.8; }
 
 .quiz-hint {
   text-align: center;
   font-size: 11px;
   color: var(--text-dimmer);
-  padding: 8px;
+  padding: 6px;
   flex-shrink: 0;
   letter-spacing: 0.1em;
 }
@@ -399,6 +444,77 @@ html, body {
 .mi-count { font-size: 11px; color: var(--wrong-text); flex-shrink: 0; white-space: nowrap; }
 .mi-delete { font-size: 18px; color: var(--text-dimmer); padding: 0 4px; cursor: pointer; flex-shrink: 0; }
 .mi-delete:active { color: var(--wrong-text); }
+
+/* ── SESSION SETUP ── */
+#screen-setup { align-items: stretch; }
+#screen-setup .scroll-body { padding: 20px 20px 40px; }
+.setup-title { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+.setup-sub { font-size: 14px; color: var(--text-dim); margin-bottom: 28px; }
+
+.setup-section { margin-bottom: 24px; }
+.setup-label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.15em; color: var(--text-dimmer); margin-bottom: 10px; display: block; }
+
+.count-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.count-chip {
+  padding: 10px 18px;
+  border-radius: var(--radius);
+  border: 2px solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  font-family: 'Atkinson Hyperlegible', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.count-chip.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+.count-chip:active { opacity: 0.75; }
+
+.subject-chips-wrap { display: flex; flex-wrap: wrap; gap: 7px; }
+.subj-chip {
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  border: 2px solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  font-family: 'Atkinson Hyperlegible', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.subj-chip.active {
+  border-color: var(--wrong-border);
+  color: var(--wrong-text);
+  background: var(--wrong-bg);
+}
+.subj-chip:active { opacity: 0.75; }
+
+.setup-start-btn {
+  width: 100%;
+  padding: 16px;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: #1a1a1e;
+  font-family: 'Atkinson Hyperlegible', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: opacity 0.15s;
+}
+.setup-start-btn:active { opacity: 0.8; }
+.setup-start-btn.mistakes-mode {
+  background: var(--wrong-bg);
+  border: 2px solid var(--wrong-border);
+  color: var(--wrong-text);
+}
+.setup-avail { font-size: 13px; color: var(--text-dimmer); margin-top: 12px; text-align: center; }
 </style>
 </head>
 <body>
@@ -433,7 +549,7 @@ html, body {
       </div>
     </div>
 
-    <div class="mistakes-banner" id="mistakes-banner" onclick="showMistakesScreen()">
+    <div class="mistakes-banner" id="mistakes-banner" onclick="openMistakesSetup()">
       <div class="mb-left">
         <div class="mb-title">Робота над помилками</div>
         <div class="mb-sub" id="mb-sub">0 питань чекають на повторення</div>
@@ -443,6 +559,24 @@ html, body {
 
     <div class="section-title">Предмети</div>
     <div class="subject-list" id="subject-list"></div>
+
+    <!-- Remote control bar -->
+    <div style="margin-top:20px;padding-top:20px;border-top:1px solid var(--border)">
+      <button onclick="toggleRemote()" id="remote-toggle-btn" style="width:100%;padding:14px;border-radius:var(--radius);background:transparent;border:2px solid var(--border);color:var(--text-dim);font-family:inherit;font-size:14px;font-weight:700;cursor:pointer">
+        📱 Підключити пульт (телефон)
+      </button>
+      <div id="remote-bar" style="display:none;margin-top:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;flex-direction:column;gap:10px">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div style="font-size:11px;color:var(--text-dimmer);text-transform:uppercase;letter-spacing:0.15em;margin-bottom:4px">Код сесії</div>
+            <div id="remote-code-display" style="font-size:32px;font-weight:700;color:var(--accent);letter-spacing:0.15em">—</div>
+          </div>
+          <button onclick="openRemoteLink()" style="padding:10px 16px;background:var(--accent);color:#1a1a1e;border:none;border-radius:var(--radius);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">Відкрити →</button>
+        </div>
+        <div id="remote-status" style="font-size:13px;color:var(--text-dim)">Ініціалізація...</div>
+        <button onclick="disconnectRemote()" style="padding:8px;background:transparent;border:1px solid var(--border);border-radius:var(--radius);color:var(--text-dimmer);font-family:inherit;font-size:12px;cursor:pointer">Відключити пульт</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -467,14 +601,16 @@ html, body {
   </div>
   <div class="progress-track"><div class="progress-fill" id="q-fill" style="width:0%"></div></div>
   <div class="dots-row" id="dots-row"></div>
-  <div class="quiz-body" id="quiz-body">
-    <div class="q-label" id="q-label">Питання 1</div>
-    <div class="q-text" id="q-text"></div>
-    <div class="options" id="options"></div>
+  <div class="quiz-body">
+    <div class="q-top">
+      <div class="q-label" id="q-label">Питання 1</div>
+      <div class="q-text" id="q-text"></div>
+    </div>
     <div class="feedback" id="feedback"></div>
+    <div class="options" id="options"></div>
     <button class="btn-next" id="btn-next" onclick="nextQ()"></button>
   </div>
-  <div class="quiz-hint">Оберіть варіант відповіді</div>
+  <div class="quiz-hint" id="quiz-hint-bar">Оберіть варіант відповіді</div>
 </div>
 
 <!-- RESULT -->
@@ -487,9 +623,31 @@ html, body {
   <div class="breakdown" id="r-breakdown"></div>
   <div class="result-btns">
     <button class="rbtn rbtn-primary" id="r-btn-repeat" onclick="repeatChunk()">Пройти ще раз</button>
-    <button class="rbtn rbtn-mistakes show" id="r-btn-mistakes" onclick="startMistakesQuiz()">Помилки цієї частини</button>
+    <button class="rbtn rbtn-mistakes show" id="r-btn-mistakes" onclick="openMistakesSetup()">Помилки цієї частини</button>
     <button class="rbtn rbtn-ghost" onclick="goBackFromResult()">← Назад</button>
     <button class="rbtn rbtn-ghost" onclick="goApp()">Відкрити TikTok →</button>
+  </div>
+</div>
+
+<!-- SESSION SETUP -->
+<div class="screen" id="screen-setup">
+  <div class="back-btn" id="setup-back-btn" onclick="setupGoBack()">← Назад</div>
+  <div class="scroll-body">
+    <div class="setup-title" id="setup-title">Налаштування сесії</div>
+    <div class="setup-sub" id="setup-sub"></div>
+
+    <div class="setup-section">
+      <span class="setup-label">Кількість питань</span>
+      <div class="count-chips" id="count-chips"></div>
+    </div>
+
+    <div class="setup-section" id="setup-subject-section" style="display:none">
+      <span class="setup-label">Предмет (для помилок)</span>
+      <div class="subject-chips-wrap" id="setup-subject-chips"></div>
+    </div>
+
+    <div class="setup-avail" id="setup-avail"></div>
+    <button class="setup-start-btn" id="setup-go-btn" onclick="launchFromSetup()">Почати →</button>
   </div>
 </div>
 
@@ -502,7 +660,7 @@ html, body {
         <div style="font-size:22px;font-weight:700">Помилки</div>
         <div style="font-size:13px;color:var(--text-dim);margin-top:3px" id="mistakes-screen-sub"></div>
       </div>
-      <button onclick="startMistakesQuiz()" style="background:var(--wrong-bg);border:2px solid var(--wrong-border);color:var(--wrong-text);padding:10px 14px;border-radius:var(--radius);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">Тренувати →</button>
+      <button onclick="openMistakesSetup()" style="background:var(--wrong-bg);border:2px solid var(--wrong-border);color:var(--wrong-text);padding:10px 14px;border-radius:var(--radius);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">Тренувати →</button>
     </div>
     <div style="font-size:12px;color:var(--text-dimmer);margin-bottom:20px">Питання залишаються поки не видалиш вручну (×)</div>
     <div id="mistakes-list"></div>
@@ -511,28 +669,32 @@ html, body {
 
 <script>
 // ══ STATE ══
-let DB = {}; // { subject: [[q,q,...], [q,...], ...] }
+let DB = {}; // { subject: { topic: [q, q, ...] } }
 let currentSubject = '';
-let currentChunkIdx = 0;
-let currentMode = 'chunk'; // 'chunk' | 'mistakes'
+let currentTopic = '';
+let currentMode = 'topic'; // 'topic' | 'mistakes'
 let SESSION = [];
 let sessionIdx = 0;
 let sessionResults = [];
+
+// Setup state
+let setupMode = 'topic';
+let setupCount = 20;
+let setupMistakesSubject = '__all__';
 
 // ══ STORAGE ══
 const load = k => { try { return JSON.parse(localStorage.getItem(k)||'null'); } catch { return null; } };
 const save = (k,v) => { try { localStorage.setItem(k,JSON.stringify(v)); } catch {} };
 
-// Progress: { "subject|chunkIdx": { seen: Set(indices as array), correct: Set, wrong: Set } }
-function getProgress(subject, chunkIdx) {
-  const key = subject+'|'+chunkIdx;
+// Progress: { "subject|topic": { seen: [], correct: [], wrong: [] } }
+function getProgress(subject, topic) {
+  const key = subject+'|'+topic;
   const raw = load('prog_'+key);
   if (!raw) return { seen: [], correct: [], wrong: [] };
   return raw;
 }
-function saveProgress(subject, chunkIdx, prog) {
-  const key = subject+'|'+chunkIdx;
-  save('prog_'+key, prog);
+function saveProgress(subject, topic, prog) {
+  save('prog_'+subject+'|'+topic, prog);
 }
 
 // Mistakes: { key: {subject,chunkIdx,question,answers,correctText,wrongCount} }
@@ -541,10 +703,10 @@ function saveMistakesData(m) { save('krok_mistakes', m); }
 
 function qKey(q) { return q[0]+'|'+q[1].substring(0,60); }
 
-function addMistake(q, chunkIdx) {
+function addMistake(q) {
   const m = getMistakes(), k = qKey(q);
   if (m[k]) { m[k].wrongCount++; }
-  else { m[k] = { subject:q[0], chunkIdx, question:q[1], answers:q[2], correctText:q[3], wrongCount:1 }; }
+  else { m[k] = { subject:q[0], topic:currentTopic, question:q[1], answers:q[2], correctText:q[3], wrongCount:1 }; }
   saveMistakesData(m);
 }
 function deleteMistake(k) {
@@ -578,21 +740,22 @@ function setLoad(p) {
 
 // ══ HOME ══
 function buildHomeUI() {
-  const total = Object.values(DB).reduce((s,chunks) => s + chunks.reduce((a,c)=>a+c.length,0), 0);
+  const total = Object.values(DB).reduce((s,topics) => s + Object.values(topics).reduce((a,qs)=>a+qs.length,0), 0);
   document.getElementById('stat-total').textContent = total.toLocaleString('uk');
   updateHomeUI();
 
   const list = document.getElementById('subject-list');
   list.innerHTML = '';
   Object.keys(DB).sort().forEach(subject => {
-    const chunks = DB[subject];
-    const totalQ = chunks.reduce((s,c)=>s+c.length, 0);
-    let doneChunks = 0;
+    const topics = DB[subject];
+    const totalQ = Object.values(topics).reduce((s,qs)=>s+qs.length, 0);
+    const topicCount = Object.keys(topics).length;
     let totalSeen = 0;
-    chunks.forEach((chunk, ci) => {
-      const prog = getProgress(subject, ci);
+    let doneTopics = 0;
+    Object.entries(topics).forEach(([topic, qs]) => {
+      const prog = getProgress(subject, topic);
       totalSeen += prog.seen.length;
-      if (prog.seen.length === chunk.length) doneChunks++;
+      if (prog.seen.length === qs.length) doneTopics++;
     });
     const pct = totalQ > 0 ? Math.round((totalSeen/totalQ)*100) : 0;
 
@@ -601,11 +764,11 @@ function buildHomeUI() {
     card.innerHTML = `
       <div class="sc-top">
         <div class="sc-name">${subject}</div>
-        <div class="sc-count">${totalQ} питань · ${chunks.length} частин</div>
+        <div class="sc-count">${totalQ} питань · ${topicCount} тем</div>
       </div>
       <div class="sc-progress-wrap"><div class="sc-progress-fill" style="width:${pct}%"></div></div>
       <div class="sc-bottom">
-        <div class="sc-parts-done">${doneChunks}/${chunks.length} частин пройдено · ${pct}%</div>
+        <div class="sc-parts-done">${doneTopics}/${topicCount} тем пройдено · ${pct}%</div>
         <div class="sc-arrow">›</div>
       </div>`;
     card.onclick = () => showSubject(subject);
@@ -630,38 +793,38 @@ function updateHomeUI() {
 // ══ SUBJECT ══
 function showSubject(subject) {
   currentSubject = subject;
-  const chunks = DB[subject];
+  const topics = DB[subject];
+  const totalQ = Object.values(topics).reduce((s,qs)=>s+qs.length, 0);
   document.getElementById('subj-title').textContent = subject;
-  document.getElementById('subj-sub').textContent = `${chunks.reduce((s,c)=>s+c.length,0)} питань · ${chunks.length} частин по ~150`;
+  document.getElementById('subj-sub').textContent = `${totalQ} питань · ${Object.keys(topics).length} тем`;
 
   const list = document.getElementById('chunk-list');
   list.innerHTML = '';
 
-  chunks.forEach((chunk, ci) => {
-    const prog = getProgress(subject, ci);
+  Object.entries(topics).sort((a,b) => b[1].length - a[1].length).forEach(([topic, qs]) => {
+    const prog = getProgress(subject, topic);
     const seen = prog.seen.length;
     const correct = prog.correct.length;
-    const isDone = seen === chunk.length;
+    const isDone = seen === qs.length;
     const hasProgress = seen > 0 && !isDone;
-    const pct = chunk.length > 0 ? Math.round((seen/chunk.length)*100) : 0;
+    const pct = qs.length > 0 ? Math.round((seen/qs.length)*100) : 0;
     const accPct = seen > 0 ? Math.round((correct/seen)*100) : 0;
 
     const card = document.createElement('div');
     card.className = 'chunk-card' + (isDone ? ' done' : hasProgress ? ' in-progress' : '');
-
-    let statusText = seen === 0 ? 'Не розпочато' : isDone ? `Завершено · ${accPct}% правильних` : `${seen}/${chunk.length} пройдено · ${accPct}% правильних`;
+    let statusText = seen === 0 ? 'Не розпочато' : isDone ? `Завершено · ${accPct}% правильних` : `${seen}/${qs.length} пройдено · ${accPct}% правильних`;
 
     card.innerHTML = `
-      <div class="chunk-num-circle">${ci+1}</div>
+      <div class="chunk-num-circle" style="width:auto;min-width:36px;border-radius:6px;font-size:11px;padding:0 6px">${qs.length}</div>
       <div class="chunk-info">
-        <div class="chunk-title">Частина ${ci+1}</div>
-        <div class="chunk-sub">${chunk.length} питань · ${statusText}</div>
+        <div class="chunk-title">${topic}</div>
+        <div class="chunk-sub">${statusText}</div>
         ${seen > 0 ? `<div class="chunk-progress-wrap"><div class="chunk-progress-fill ${isDone?'done':''}" style="width:${pct}%"></div></div>` : ''}
       </div>
       <div class="chunk-right">
         <div class="chunk-pct">${seen > 0 ? pct+'%' : ''}</div>
       </div>`;
-    card.onclick = () => startChunk(subject, ci);
+    card.onclick = () => startTopic(subject, topic);
     list.appendChild(card);
   });
 
@@ -675,42 +838,150 @@ function shuffle(arr) {
   return a;
 }
 
-function startChunk(subject, chunkIdx) {
+function startTopic(subject, topic) {
   currentSubject = subject;
-  currentChunkIdx = chunkIdx;
-  currentMode = 'chunk';
+  currentTopic = topic;
+  setupMode = 'topic';
+  openSetup();
+}
 
-  const chunk = DB[subject][chunkIdx];
-  const prog = getProgress(subject, chunkIdx);
-  const seenSet = new Set(prog.seen);
+function startChunk(subject, chunkIdx) { /* legacy - unused */ }
 
-  // Unseen first, then seen (for review), pick 10
-  const unseen = chunk.map((_,i)=>i).filter(i=>!seenSet.has(i));
-  const seen = chunk.map((_,i)=>i).filter(i=>seenSet.has(i));
+function openMistakesSetup() {
+  setupMode = 'mistakes';
+  openSetup();
+}
 
-  // Prioritize unseen, mix in some mistakes
-  const mistakeKeys = new Set(Object.keys(getMistakes()));
-  let pool = shuffle(unseen);
+function openSetup() {
+  const isMistakes = setupMode === 'mistakes';
 
-  // If less than 10 unseen, add seen questions (mistakes first)
-  if (pool.length < 10) {
-    const seenWithMistakes = shuffle(seen).sort((a,b) => {
-      const qa = chunk[a], qb = chunk[b];
-      const am = mistakeKeys.has(qKey(qa)) ? 1 : 0;
-      const bm = mistakeKeys.has(qKey(qb)) ? 1 : 0;
-      return bm - am;
-    });
-    pool = [...pool, ...seenWithMistakes];
+  if (isMistakes) {
+    document.getElementById('setup-title').textContent = 'Робота над помилками';
+    document.getElementById('setup-sub').textContent = 'Вибери кількість та предмет';
+    document.getElementById('setup-go-btn').classList.add('mistakes-mode');
+  } else {
+    const qs = DB[currentSubject][currentTopic] || [];
+    document.getElementById('setup-title').textContent = currentTopic;
+    document.getElementById('setup-sub').textContent = `${currentSubject} · ${qs.length} питань`;
+    document.getElementById('setup-go-btn').classList.remove('mistakes-mode');
   }
 
-  SESSION = pool.slice(0,10).map(i => ({...chunk[i], _origIdx: i}));
-  // Flatten to array format
-  SESSION = pool.slice(0,10).map(i => chunk[i]);
-  sessionIdx = 0;
-  sessionResults = [];
-  incSessions();
+  const m = getMistakes();
+  const totalAvail = isMistakes
+    ? Object.keys(m).length
+    : (DB[currentSubject][currentTopic] || []).length;
 
-  document.getElementById('q-subj').textContent = subject + ' · Ч.' + (chunkIdx+1);
+  const counts = [10, 20, 50, 100, 150];
+  const chipsEl = document.getElementById('count-chips');
+  chipsEl.innerHTML = '';
+  counts.forEach(n => {
+    if (n > totalAvail && n !== 10) return;
+    const btn = document.createElement('button');
+    btn.className = 'count-chip' + (setupCount === n ? ' active' : '');
+    btn.textContent = n;
+    btn.onclick = () => {
+      setupCount = n;
+      document.querySelectorAll('.count-chip').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      updateSetupAvail();
+    };
+    chipsEl.appendChild(btn);
+  });
+  const allBtn = document.createElement('button');
+  allBtn.className = 'count-chip' + (setupCount === 9999 ? ' active' : '');
+  allBtn.textContent = 'Всі';
+  allBtn.onclick = () => {
+    setupCount = 9999;
+    document.querySelectorAll('.count-chip').forEach(c => c.classList.remove('active'));
+    allBtn.classList.add('active');
+    updateSetupAvail();
+  };
+  chipsEl.appendChild(allBtn);
+
+  const subjSection = document.getElementById('setup-subject-section');
+  if (isMistakes) {
+    subjSection.style.display = 'block';
+    const mistakeSubjects = [...new Set(Object.values(m).map(mi => mi.subject))].sort();
+    const subjEl = document.getElementById('setup-subject-chips');
+    subjEl.innerHTML = '';
+    const allSubjBtn = document.createElement('button');
+    allSubjBtn.className = 'subj-chip' + (setupMistakesSubject === '__all__' ? ' active' : '');
+    allSubjBtn.textContent = 'Усі предмети';
+    allSubjBtn.onclick = () => {
+      setupMistakesSubject = '__all__';
+      document.querySelectorAll('.subj-chip').forEach(c => c.classList.remove('active'));
+      allSubjBtn.classList.add('active');
+      updateSetupAvail();
+    };
+    subjEl.appendChild(allSubjBtn);
+    mistakeSubjects.forEach(s => {
+      const cnt = Object.values(m).filter(mi => mi.subject === s).length;
+      const btn = document.createElement('button');
+      btn.className = 'subj-chip' + (setupMistakesSubject === s ? ' active' : '');
+      btn.textContent = `${s} (${cnt})`;
+      btn.onclick = () => {
+        setupMistakesSubject = s;
+        document.querySelectorAll('.subj-chip').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        updateSetupAvail();
+      };
+      subjEl.appendChild(btn);
+    });
+  } else {
+    subjSection.style.display = 'none';
+  }
+
+  updateSetupAvail();
+  showScreen('screen-setup');
+}
+
+function updateSetupAvail() {
+  const m = getMistakes();
+  let pool;
+  if (setupMode === 'mistakes') {
+    pool = Object.values(m).filter(mi => setupMistakesSubject === '__all__' || mi.subject === setupMistakesSubject);
+  } else {
+    pool = DB[currentSubject][currentTopic] || [];
+  }
+  const actual = Math.min(setupCount === 9999 ? pool.length : setupCount, pool.length);
+  document.getElementById('setup-avail').textContent = `Буде показано ${actual} питань з ${pool.length} доступних`;
+}
+
+function setupGoBack() {
+  if (setupMode === 'mistakes') showMistakesScreen();
+  else showSubject(currentSubject);
+}
+
+function launchFromSetup() {
+  if (setupMode === 'mistakes') startMistakesQuiz();
+  else launchTopicQuiz();
+}
+
+function launchTopicQuiz() {
+  currentMode = 'topic';
+  const qs = DB[currentSubject][currentTopic] || [];
+  const prog = getProgress(currentSubject, currentTopic);
+  const seenSet = new Set(prog.seen);
+
+  const unseen = qs.map((_,i)=>i).filter(i=>!seenSet.has(i));
+  const seen = qs.map((_,i)=>i).filter(i=>seenSet.has(i));
+  const mistakeKeys = new Set(Object.keys(getMistakes()));
+  let pool = shuffle(unseen);
+  const count = setupCount === 9999 ? qs.length : setupCount;
+
+  if (pool.length < count) {
+    const seenSorted = shuffle(seen).sort((a,b) => {
+      const am = mistakeKeys.has(qKey(qs[a])) ? 1 : 0;
+      const bm = mistakeKeys.has(qKey(qs[b])) ? 1 : 0;
+      return bm - am;
+    });
+    pool = [...pool, ...seenSorted];
+  }
+
+  SESSION = pool.slice(0, count).map(i => qs[i]);
+  sessionIdx = 0; sessionResults = [];
+  incSessions();
+  document.getElementById('q-subj').textContent = `${currentSubject} · ${currentTopic}`;
   showScreen('screen-quiz');
   renderQ();
 }
@@ -719,13 +990,15 @@ function startMistakesQuiz() {
   const m = getMistakes();
   let pool = Object.values(m);
 
-  // Filter by current subject if coming from subject screen
-  // Actually show all mistakes for global practice
-  if (!pool.length) { alert('Немає помилок!'); return; }
+  if (setupMistakesSubject !== '__all__') {
+    pool = pool.filter(mi => mi.subject === setupMistakesSubject);
+  }
 
-  // Sort by wrongCount desc
+  if (!pool.length) { alert('Немає помилок для вибраного предмету!'); return; }
+
   pool.sort((a,b) => b.wrongCount - a.wrongCount);
-  pool = shuffle(pool.slice(0, Math.min(pool.length, 30))).slice(0,10);
+  const count = setupCount === 9999 ? pool.length : Math.min(setupCount, pool.length);
+  pool = shuffle(pool).slice(0, count);
   SESSION = pool.map(mi => [mi.subject, mi.question, mi.answers, mi.correctText]);
 
   currentMode = 'mistakes';
@@ -733,7 +1006,8 @@ function startMistakesQuiz() {
   sessionResults = [];
   incSessions();
 
-  document.getElementById('q-subj').textContent = 'Робота над помилками';
+  const label = setupMistakesSubject === '__all__' ? 'Робота над помилками' : `Помилки · ${setupMistakesSubject}`;
+  document.getElementById('q-subj').textContent = label;
   showScreen('screen-quiz');
   renderQ();
 }
@@ -772,6 +1046,7 @@ function renderQ() {
   shuffled.forEach((ans, idx) => {
     const btn = document.createElement('button');
     btn.className = 'opt';
+    btn.setAttribute('data-ci', idx);
     btn.innerHTML = `<div class="opt-letter">${letters[idx]}</div><div class="opt-text">${ans}</div>`;
     btn.onclick = () => selectOpt(idx);
     optEl.appendChild(btn);
@@ -779,7 +1054,13 @@ function renderQ() {
 
   document.getElementById('feedback').className = 'feedback';
   document.getElementById('btn-next').className = 'btn-next';
-  document.getElementById('quiz-body').scrollTop = 0;
+
+  // Show remote hint if connected
+  const hint = document.getElementById('quiz-hint-bar');
+  hint.textContent = remoteConnected ? '📱 Відповідай з телефону' : 'Оберіть варіант відповіді';
+
+  // Send to remote if connected
+  setTimeout(publishQuestion, 100);
 }
 
 function selectOpt(idx) {
@@ -787,21 +1068,18 @@ function selectOpt(idx) {
   const isCorrect = idx === q._ci;
   sessionResults[sessionIdx] = isCorrect;
 
-  // Update progress for chunk mode
-  if (currentMode === 'chunk') {
-    const chunk = DB[currentSubject][currentChunkIdx];
-    const origIdx = chunk.findIndex(c => {
-      const qt = Array.isArray(q) ? q[1] : q.question;
-      return c[1] === qt;
-    });
+  // Update progress for topic mode
+  if (currentMode === 'topic') {
+    const qs = DB[currentSubject][currentTopic] || [];
+    const origIdx = qs.findIndex(c => c[1] === (Array.isArray(q) ? q[1] : q.question));
     if (origIdx >= 0) {
-      const prog = getProgress(currentSubject, currentChunkIdx);
+      const prog = getProgress(currentSubject, currentTopic);
       const seenSet = new Set(prog.seen);
       const correctSet = new Set(prog.correct);
       const wrongSet = new Set(prog.wrong);
       seenSet.add(origIdx);
       if (isCorrect) correctSet.add(origIdx); else wrongSet.add(origIdx);
-      saveProgress(currentSubject, currentChunkIdx, {
+      saveProgress(currentSubject, currentTopic, {
         seen: [...seenSet], correct: [...correctSet], wrong: [...wrongSet]
       });
     }
@@ -809,7 +1087,7 @@ function selectOpt(idx) {
 
   // Track mistakes — always add on wrong, never auto-delete
   if (!isCorrect) {
-    addMistake(Array.isArray(q) ? q : [q.subject, q.question, q.answers, q.correctText], currentChunkIdx);
+    addMistake(Array.isArray(q) ? q : [q.subject, q.question, q.answers, q.correctText]);
   }
 
   const letters = ['А','Б','В','Г','Д'];
@@ -845,7 +1123,7 @@ function showResult() {
   const pct = Math.round((correct/total)*100);
   const wrong = total-correct;
 
-  document.getElementById('r-mode').textContent = currentMode==='mistakes' ? 'Робота над помилками' : `${currentSubject} · Частина ${currentChunkIdx+1}`;
+  document.getElementById('r-mode').textContent = currentMode==='mistakes' ? 'Робота над помилками' : `${currentSubject} · ${currentTopic}`;
   document.getElementById('r-score').textContent = `${correct}/${total}`;
   document.getElementById('r-pct').textContent = `${pct}% правильних`;
   document.getElementById('q-fill').style.width = '100%';
@@ -875,22 +1153,23 @@ function showResult() {
   } else bd.innerHTML='';
 
   // Show mistakes button only if there were mistakes in this chunk
-  const chunkMistakes = Object.values(getMistakes()).filter(m => m.subject===currentSubject && m.chunkIdx===currentChunkIdx);
+  const topicMistakes = Object.values(getMistakes()).filter(m => m.subject===currentSubject && m.topic===currentTopic);
   const rBtnM = document.getElementById('r-btn-mistakes');
-  if (chunkMistakes.length > 0 && currentMode !== 'mistakes') {
+  if (topicMistakes.length > 0 && currentMode !== 'mistakes') {
     rBtnM.classList.add('show');
-    rBtnM.textContent = `Помилки цієї частини (${chunkMistakes.length})`;
+    rBtnM.textContent = `Помилки цієї теми (${topicMistakes.length})`;
   } else {
     rBtnM.classList.remove('show');
   }
 
   updateHomeUI();
   showScreen('screen-result');
+  publishResult();
 }
 
 function repeatChunk() {
-  if (currentMode === 'mistakes') { startMistakesQuiz(); return; }
-  startChunk(currentSubject, currentChunkIdx);
+  if (currentMode === 'mistakes') { openMistakesSetup(); return; }
+  openSetup();
 }
 
 function goBackFromResult() {
@@ -953,6 +1232,88 @@ function showScreen(id) {
 function goApp() {
   window.location.href='tiktok://';
   setTimeout(()=>{ window.location.href='https://www.tiktok.com'; }, 500);
+}
+
+// ══ REMOTE CONTROL (Ably) ══
+const ABLY_KEY = 'H-vEJw.-1zApQ:p1J75J03B7p-dUauC0MmMdci9oxuFNgN9Y2ZC4tSe6s';
+let ablyClient = null, ablyChannel = null;
+let remoteCode = '', remoteConnected = false;
+
+function generateCode() {
+  return Math.floor(1000 + Math.random() * 9000).toString();
+}
+
+async function initRemote() {
+  if (ablyClient) return;
+  remoteCode = generateCode();
+
+  // Show code in UI
+  document.getElementById('remote-code-display').textContent = remoteCode;
+  document.getElementById('remote-status').textContent = 'Очікуємо підключення пульту...';
+  document.getElementById('remote-bar').style.display = 'flex';
+
+  ablyClient = new Ably.Realtime({ key: ABLY_KEY });
+  await new Promise(r => ablyClient.connection.once('connected', r));
+
+  ablyChannel = ablyClient.channels.get('krok-' + remoteCode);
+
+  ablyChannel.subscribe('pong', () => {
+    remoteConnected = true;
+    document.getElementById('remote-status').textContent = '🟢 Пульт підключено!';
+  });
+
+  ablyChannel.subscribe('answer', msg => {
+    if (msg.data !== undefined) selectOpt(msg.data.idx);
+  });
+
+  ablyChannel.subscribe('next', () => {
+    nextQ();
+  });
+
+  // Ping loop to detect remote
+  setInterval(() => {
+    if (ablyChannel) ablyChannel.publish('ping', {});
+  }, 3000);
+}
+
+function disconnectRemote() {
+  if (ablyClient) { ablyClient.close(); ablyClient = null; ablyChannel = null; }
+  remoteConnected = false;
+  remoteCode = '';
+  document.getElementById('remote-bar').style.display = 'none';
+}
+
+function publishQuestion() {
+  if (!ablyChannel || !remoteConnected) return;
+  const q = SESSION[sessionIdx];
+  const answers = Array.isArray(q) ? q[2] : q.answers;
+  const subject = Array.isArray(q) ? q[0] : q.subject;
+  const qText = Array.isArray(q) ? q[1] : q.question;
+
+  ablyChannel.publish('question', {
+    idx: sessionIdx,
+    total: SESSION.length,
+    subject,
+    question: qText,
+    answers: q._sh || answers,
+    correctIdx: q._ci
+  });
+}
+
+function publishResult() {
+  if (!ablyChannel || !remoteConnected) return;
+  const correct = sessionResults.filter(Boolean).length;
+  ablyChannel.publish('result', { correct, total: SESSION.length });
+}
+
+function toggleRemote() {
+  if (ablyClient) { disconnectRemote(); return; }
+  initRemote();
+}
+
+function openRemoteLink() {
+  const url = `https://priestlyjk.github.io/krok-quiz/remote.html?v=3&code=${remoteCode}`;
+  window.open(url, '_blank');
 }
 
 init();
