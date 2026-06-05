@@ -647,7 +647,21 @@ mark.ai-kw {
 </div>
 
 <!-- Keyword highlight toggle button -->
-<button class="kw-toggle-btn active" id="kw-toggle-btn" title="Ключові слова" onclick="toggleKeywords()">🔑</button>
+<button class="kw-toggle-btn active" id="kw-toggle-btn" title="AI підсвічування" onclick="toggleKeywords()">🔑</button>
+
+<!-- API key modal -->
+<div id="api-key-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;align-items:center;justify-content:center;">
+  <div style="background:#26262c;border:1px solid #444;border-radius:12px;padding:20px;width:min(340px,90vw);">
+    <div style="font-size:15px;font-weight:700;color:#dddad4;margin-bottom:8px;">🔑 Anthropic API ключ</div>
+    <div style="font-size:12px;color:#8a8790;margin-bottom:12px;">Ключ зберігається тільки в браузері (localStorage). В код і GitHub не потрапляє.</div>
+    <input id="api-key-input" type="password" placeholder="sk-ant-api03-..." style="width:100%;padding:10px;font-size:13px;font-family:monospace;background:#1a1a1e;border:1px solid #444;border-radius:8px;color:#dddad4;box-sizing:border-box;margin-bottom:12px;" />
+    <div style="display:flex;gap:8px;">
+      <button onclick="saveApiKey()" style="flex:1;padding:10px;background:#b8956a;border:none;border-radius:8px;color:#1a1a1e;font-weight:700;font-size:14px;cursor:pointer;">Зберегти</button>
+      <button onclick="closeApiModal()" style="padding:10px 14px;background:#38383f;border:none;border-radius:8px;color:#dddad4;font-size:14px;cursor:pointer;">✕</button>
+    </div>
+    <div id="api-key-status" style="font-size:12px;color:#5a9e78;margin-top:8px;text-align:center;"></div>
+  </div>
+</div>
 
 <!-- RESULT -->
 <div class="screen" id="screen-result">
@@ -727,16 +741,63 @@ let kwEnabled = true; // підсвічування увімкнено
 let KW_SORTED = []; // відсортовані фрази (довші спочатку)
 
 function toggleKeywords() {
+  // Якщо ключа нема — одразу відкриваємо modal
+  if (!getApiKey()) { openApiModal(); return; }
   kwEnabled = !kwEnabled;
   const btn = document.getElementById('kw-toggle-btn');
   btn.classList.toggle('active', kwEnabled);
-  btn.title = kwEnabled ? 'Ключові слова увімкнено' : 'Ключові слова вимкнено';
-  // перерендерити поточне питання якщо в квізі
+  btn.title = kwEnabled ? 'AI підсвічування увімкнено (затисни для ключа)' : 'AI підсвічування вимкнено';
+  // перерендерити поточне питання
   const quiz = document.getElementById('screen-quiz');
-  if (quiz && quiz.classList.contains('active')) {
-    applyKeywordsToCurrentQ();
-  }
+  if (quiz && quiz.classList.contains('active')) renderQ();
 }
+
+function openApiModal() {
+  const modal = document.getElementById('api-key-modal');
+  modal.style.display = 'flex';
+  const inp = document.getElementById('api-key-input');
+  const existing = getApiKey();
+  inp.value = existing ? '••••••••••••' + existing.slice(-6) : '';
+  inp.placeholder = 'sk-ant-api03-...';
+  document.getElementById('api-key-status').textContent = existing ? '✓ Ключ вже збережено' : '';
+  setTimeout(() => inp.focus(), 100);
+}
+
+function closeApiModal() {
+  document.getElementById('api-key-modal').style.display = 'none';
+}
+
+function saveApiKey() {
+  const val = document.getElementById('api-key-input').value.trim();
+  if (!val || val.startsWith('•')) {
+    closeApiModal();
+    return;
+  }
+  if (!val.startsWith('sk-ant-')) {
+    document.getElementById('api-key-status').textContent = '⚠ Ключ має починатись з sk-ant-';
+    document.getElementById('api-key-status').style.color = '#9e5a5a';
+    return;
+  }
+  setApiKey(val);
+  document.getElementById('api-key-status').textContent = '✓ Збережено!';
+  document.getElementById('api-key-status').style.color = '#5a9e78';
+  kwEnabled = true;
+  document.getElementById('kw-toggle-btn').classList.add('active');
+  // очищаємо кеш бо може бути новий ключ
+  Object.keys(AI_CACHE).forEach(k => delete AI_CACHE[k]);
+  setTimeout(() => { closeApiModal(); renderQ(); }, 800);
+}
+
+// Довге натискання на 🔑 → modal з ключем
+let kwBtnTimer;
+document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.getElementById('kw-toggle-btn');
+  if (!btn) return;
+  btn.addEventListener('mousedown', () => { kwBtnTimer = setTimeout(openApiModal, 600); });
+  btn.addEventListener('mouseup', () => clearTimeout(kwBtnTimer));
+  btn.addEventListener('touchstart', () => { kwBtnTimer = setTimeout(openApiModal, 600); }, {passive:true});
+  btn.addEventListener('touchend', () => clearTimeout(kwBtnTimer));
+});
 
 function applyKeywordsToCurrentQ() {
   const qtEl = document.getElementById('q-text');
@@ -1271,11 +1332,20 @@ function startMistakesQuiz() {
 // ══ AI KEYWORD HIGHLIGHTING ══
 const AI_CACHE = {}; // кеш: qText → [phrase1, phrase2, ...]
 // Встав свій Anthropic API ключ тут:
-const ANTHROPIC_API_KEY = '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';
+
+
+// ══ AI API KEY (зберігається в localStorage, не в коді) ══
+function getApiKey() {
+  return localStorage.getItem('anthropic_api_key') || '';
+}
+function setApiKey(key) {
+  localStorage.setItem('anthropic_api_key', key.trim());
+}
 
 async function getAIKeywords(qText) {
   if (AI_CACHE[qText]) return AI_CACHE[qText];
-  if (!ANTHROPIC_API_KEY || ANTHROPIC_API_KEY === 'YOUR_API_KEY_HERE') {
+  const key = getApiKey();
+  if (!key) {
     AI_CACHE[qText] = [];
     return [];
   }
@@ -1285,7 +1355,7 @@ async function getAIKeywords(qText) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_API_KEY,
+        'x-api-key': key,
         'anthropic-version': '2023-06-01',
         'anthropic-dangerous-direct-browser-access': 'true'
       },
