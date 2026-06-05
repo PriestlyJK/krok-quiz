@@ -741,15 +741,26 @@ let kwEnabled = true; // підсвічування увімкнено
 let KW_SORTED = []; // відсортовані фрази (довші спочатку)
 
 function toggleKeywords() {
-  // Якщо ключа нема — одразу відкриваємо modal
   if (!getApiKey()) { openApiModal(); return; }
   kwEnabled = !kwEnabled;
   const btn = document.getElementById('kw-toggle-btn');
   btn.classList.toggle('active', kwEnabled);
-  btn.title = kwEnabled ? 'AI підсвічування увімкнено (затисни для ключа)' : 'AI підсвічування вимкнено';
-  // перерендерити поточне питання
-  const quiz = document.getElementById('screen-quiz');
-  if (quiz && quiz.classList.contains('active')) renderQ();
+  // Оновлюємо тільки текст питання, варіанти не чіпаємо
+  const q = SESSION[sessionIdx];
+  if (!q) return;
+  const qText = Array.isArray(q) ? q[1] : q.question;
+  const qtEl = document.getElementById('q-text');
+  if (!qtEl) return;
+  if (kwEnabled) {
+    const cached = AI_CACHE[qText];
+    if (cached && cached.length) {
+      qtEl.innerHTML = highlightPhrases(qText, cached);
+    } else if (cached === undefined && getApiKey()) {
+      getAIKeywords(qText);
+    }
+  } else {
+    qtEl.innerHTML = escapeHtml(qText);
+  }
 }
 
 function openApiModal() {
@@ -1452,12 +1463,13 @@ function renderQ() {
   const answers = Array.isArray(q) ? q[2] : q.answers;
   const correctText = Array.isArray(q) ? q[3] : q.correctText;
   const qText = Array.isArray(q) ? q[1] : q.question;
-  const subject = Array.isArray(q) ? q[0] : q.subject;
 
-  const shuffled = shuffle(answers);
-  const correctIdx = shuffled.indexOf(correctText);
-  SESSION[sessionIdx]._sh = shuffled;
-  SESSION[sessionIdx]._ci = correctIdx;
+  // Shuffle тільки якщо ще не зроблено для цього питання
+  if (!q._sh) {
+    const shuffled = shuffle(answers);
+    q._sh = shuffled;
+    q._ci = shuffled.indexOf(correctText);
+  }
 
   const total = SESSION.length;
   document.getElementById('q-prog').textContent = `${sessionIdx+1} / ${total}`;
@@ -1466,24 +1478,22 @@ function renderQ() {
 
   // Питання — миттєво з кешу або без підсвічування
   const qtEl = document.getElementById('q-text');
-  qtEl.dataset.raw = qText;
   const cached = AI_CACHE[qText];
   if (kwEnabled && cached && cached.length) {
     qtEl.innerHTML = highlightPhrases(qText, cached);
   } else {
     qtEl.innerHTML = escapeHtml(qText);
-    // Якщо ще не в кеші — запитуємо (додається в чергу або робить запит)
     if (kwEnabled && getApiKey() && cached === undefined) {
-      getAIKeywords(qText); // результат прийде і оновить DOM сам (в getAIKeywords)
+      getAIKeywords(qText);
     }
   }
 
   // Dots
   const dotsEl = document.getElementById('dots-row');
   dotsEl.innerHTML = '';
-  for (let i=0;i<total;i++) {
+  for (let i = 0; i < total; i++) {
     const d = document.createElement('div');
-    d.className = 'dot'+(i<sessionIdx?(sessionResults[i]?' ok':' fail'):i===sessionIdx?' cur':'');
+    d.className = 'dot' + (i < sessionIdx ? (sessionResults[i] ? ' ok' : ' fail') : i === sessionIdx ? ' cur' : '');
     dotsEl.appendChild(d);
   }
 
@@ -1491,7 +1501,7 @@ function renderQ() {
   const letters = ['А','Б','В','Г','Д'];
   const optEl = document.getElementById('options');
   optEl.innerHTML = '';
-  shuffled.forEach((ans, idx) => {
+  q._sh.forEach((ans, idx) => {
     const btn = document.createElement('button');
     btn.className = 'opt';
     btn.setAttribute('data-ci', idx);
@@ -1503,11 +1513,9 @@ function renderQ() {
   document.getElementById('feedback').className = 'feedback';
   document.getElementById('btn-next').className = 'btn-next';
 
-  // Show remote hint if connected
   const hint = document.getElementById('quiz-hint-bar');
   hint.textContent = remoteConnected ? '📱 Відповідай з телефону' : 'Оберіть варіант відповіді';
 
-  // Send to remote if connected
   setTimeout(publishQuestion, 100);
 }
 
