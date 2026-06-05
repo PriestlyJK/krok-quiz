@@ -318,17 +318,43 @@ html, body {
 }
 .opt-text { font-size: 14px; line-height: 1.4; color: var(--text); flex: 1; font-family: 'Atkinson Hyperlegible', sans-serif; font-weight: 700; }
 
-/* ── KEYWORD HIGHLIGHTS ── */
-mark.ai-kw {
-  background: rgba(184,149,106,0.25);
+/* ── MANUAL KEYWORD HIGHLIGHTS ── */
+mark.user-kw {
+  background: rgba(184,149,106,0.28);
   color: #f5d08a;
   border-bottom: 2px solid #f0c97a;
   border-radius: 3px;
   padding: 0 2px;
   font-weight: 700;
   font-style: normal;
-  -webkit-text-decoration: none;
   text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+mark.user-kw:hover, mark.user-kw.removing {
+  background: rgba(158,90,90,0.35);
+  border-bottom-color: #c97e7e;
+  color: #c97e7e;
+}
+/* В режимі виділення — текст питання стає виділюваним */
+.select-mode #q-text {
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
+}
+#q-text {
+  user-select: none;
+  -webkit-user-select: none;
+}
+.kw-toggle-btn.select-active {
+  border-color: #b8956a;
+  color: #b8956a;
+  background: rgba(184,149,106,0.15);
+  animation: pulse-kw 1.5s ease-in-out infinite;
+}
+@keyframes pulse-kw {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(184,149,106,0.4); }
+  50% { box-shadow: 0 0 0 6px rgba(184,149,106,0); }
 }
 .kw-toggle-btn {
   position: fixed;
@@ -646,21 +672,13 @@ mark.ai-kw {
   <div class="quiz-hint" id="quiz-hint-bar">Оберіть варіант відповіді</div>
 </div>
 
-<!-- Keyword highlight toggle button -->
-<button class="kw-toggle-btn active" id="kw-toggle-btn" title="AI підсвічування" onclick="toggleKeywords()">🔑</button>
 
-<!-- API key modal -->
-<div id="api-key-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;align-items:center;justify-content:center;">
-  <div style="background:#26262c;border:1px solid #444;border-radius:12px;padding:20px;width:min(340px,90vw);">
-    <div style="font-size:15px;font-weight:700;color:#dddad4;margin-bottom:8px;">🔑 Anthropic API ключ</div>
-    <div style="font-size:12px;color:#8a8790;margin-bottom:12px;">Ключ зберігається тільки в браузері (localStorage). В код і GitHub не потрапляє.</div>
-    <input id="api-key-input" type="password" placeholder="sk-ant-api03-..." style="width:100%;padding:10px;font-size:13px;font-family:monospace;background:#1a1a1e;border:1px solid #444;border-radius:8px;color:#dddad4;box-sizing:border-box;margin-bottom:12px;" />
-    <div style="display:flex;gap:8px;">
-      <button onclick="saveApiKey()" style="flex:1;padding:10px;background:#b8956a;border:none;border-radius:8px;color:#1a1a1e;font-weight:700;font-size:14px;cursor:pointer;">Зберегти</button>
-      <button onclick="closeApiModal()" style="padding:10px 14px;background:#38383f;border:none;border-radius:8px;color:#dddad4;font-size:14px;cursor:pointer;">✕</button>
-    </div>
-    <div id="api-key-status" style="font-size:12px;color:#5a9e78;margin-top:8px;text-align:center;"></div>
-  </div>
+<!-- Кнопка режиму виділення -->
+<button class="kw-toggle-btn" id="kw-toggle-btn" title="Режим виділення слів" onclick="toggleSelectMode()">✏️</button>
+
+<!-- Підказка режиму виділення -->
+<div id="select-hint" style="display:none;position:fixed;bottom:136px;right:8px;background:#26262c;border:1px solid #b8956a;border-radius:8px;padding:6px 10px;font-size:11px;color:#b8956a;z-index:99;max-width:160px;text-align:center;line-height:1.4;">
+  Виділяй слова в питанні пальцем
 </div>
 
 <!-- RESULT -->
@@ -735,215 +753,9 @@ let setupCount = 20;
 let setupMistakesSubject = '__all__';
 let setupMistakesTopic = '__all__';
 
-// ══ KEYWORDS ══
-let KEYWORDS = {}; // { phrase: hint }
-let kwEnabled = true; // підсвічування увімкнено
-let KW_SORTED = []; // відсортовані фрази (довші спочатку)
-
-function toggleKeywords() {
-  if (!getApiKey()) { openApiModal(); return; }
-  kwEnabled = !kwEnabled;
-  const btn = document.getElementById('kw-toggle-btn');
-  btn.classList.toggle('active', kwEnabled);
-  // Оновлюємо тільки текст питання, варіанти не чіпаємо
-  const q = SESSION[sessionIdx];
-  if (!q) return;
-  const qText = Array.isArray(q) ? q[1] : q.question;
-  const qtEl = document.getElementById('q-text');
-  if (!qtEl) return;
-  if (kwEnabled) {
-    const cached = AI_CACHE[qText];
-    if (cached && cached.length) {
-      qtEl.innerHTML = highlightPhrases(qText, cached);
-    } else if (cached === undefined && getApiKey()) {
-      getAIKeywords(qText);
-    }
-  } else {
-    qtEl.innerHTML = escapeHtml(qText);
-  }
-}
-
-function openApiModal() {
-  const modal = document.getElementById('api-key-modal');
-  modal.style.display = 'flex';
-  const inp = document.getElementById('api-key-input');
-  const existing = getApiKey();
-  inp.value = existing ? '••••••••••••' + existing.slice(-6) : '';
-  inp.placeholder = 'sk-ant-api03-...';
-  document.getElementById('api-key-status').textContent = existing ? '✓ Ключ вже збережено' : '';
-  setTimeout(() => inp.focus(), 100);
-}
-
-function closeApiModal() {
-  document.getElementById('api-key-modal').style.display = 'none';
-}
-
-function saveApiKey() {
-  const val = document.getElementById('api-key-input').value.trim();
-  if (!val || val.startsWith('•')) {
-    closeApiModal();
-    return;
-  }
-  if (!val.startsWith('sk-ant-')) {
-    document.getElementById('api-key-status').textContent = '⚠ Ключ має починатись з sk-ant-';
-    document.getElementById('api-key-status').style.color = '#9e5a5a';
-    return;
-  }
-  setApiKey(val);
-  document.getElementById('api-key-status').textContent = '✓ Збережено!';
-  document.getElementById('api-key-status').style.color = '#5a9e78';
-  kwEnabled = true;
-  document.getElementById('kw-toggle-btn').classList.add('active');
-  // очищаємо кеш і перезапускаємо prefetch
-  Object.keys(AI_CACHE).forEach(k => delete AI_CACHE[k]);
-  setTimeout(() => {
-    closeApiModal();
-    if (SESSION.length) { prefetchSession(SESSION); renderQ(); }
-  }, 800);
-}
-
-// Довге натискання на 🔑 → modal з ключем
-let kwBtnTimer;
-document.addEventListener('DOMContentLoaded', () => {
-  const btn = document.getElementById('kw-toggle-btn');
-  if (!btn) return;
-  btn.addEventListener('mousedown', () => { kwBtnTimer = setTimeout(openApiModal, 600); });
-  btn.addEventListener('mouseup', () => clearTimeout(kwBtnTimer));
-  btn.addEventListener('touchstart', () => { kwBtnTimer = setTimeout(openApiModal, 600); }, {passive:true});
-  btn.addEventListener('touchend', () => clearTimeout(kwBtnTimer));
-});
-
-function applyKeywordsToCurrentQ() {
-  const qtEl = document.getElementById('q-text');
-  const optsEl = document.querySelectorAll('.opt-text');
-  if (!qtEl) return;
-
-  // Відновити чистий текст (зберігаємо в data-raw)
-  if (!qtEl.dataset.raw) qtEl.dataset.raw = qtEl.textContent;
-  qtEl.innerHTML = kwEnabled ? highlightKeywords(qtEl.dataset.raw) : escapeHtml(qtEl.dataset.raw);
-
-  optsEl.forEach(el => {
-    if (!el.dataset.raw) el.dataset.raw = el.textContent;
-    el.innerHTML = kwEnabled ? highlightKeywords(el.dataset.raw) : escapeHtml(el.dataset.raw);
-  });
-}
-
-function highlightKeywords(text) {
-  if (!kwEnabled || !KW_SORTED.length) return escapeHtml(text);
-  
-  // Будуємо масив позицій для заміни (щоб не замінювати всередині вже замінених)
-  const positions = []; // [{start, end, phrase, hint}]
-  const lowerText = text.toLowerCase();
-
-  KW_SORTED.forEach(phrase => {
-    const hint = KEYWORDS[phrase] || '';
-    // Генеруємо всі варіанти для пошуку (точний + стемінг)
-    const variants = getStemVariants(phrase);
-    
-    variants.forEach(variant => {
-      const lv = variant.toLowerCase();
-      let idx = 0;
-      while ((idx = lowerText.indexOf(lv, idx)) !== -1) {
-        const end = idx + variant.length;
-        // Перевіряємо межі слова (не всередині іншого слова)
-        const before = idx > 0 ? lowerText[idx-1] : ' ';
-        const after = end < lowerText.length ? lowerText[end] : ' ';
-        const isBoundBefore = /[\s,.(;:!?«»"'\-–—\/]/.test(before) || idx === 0;
-        const isBoundAfter = /[\s,.(;:!?«»"'\-–—\/]/.test(after) || end === lowerText.length;
-        
-        if (isBoundBefore && isBoundAfter) {
-          // Перевіряємо чи не перекривається з вже знайденими
-          const overlap = positions.some(p => idx < p.end && end > p.start);
-          if (!overlap) {
-            positions.push({ start: idx, end, phrase, hint });
-          }
-        }
-        idx++;
-      }
-    });
-  });
-
-  if (!positions.length) return escapeHtml(text);
-
-  // Сортуємо за позицією
-  positions.sort((a, b) => a.start - b.start);
-
-  // Будуємо результат
-  let result = '';
-  let cursor = 0;
-  positions.forEach(({ start, end, phrase, hint }) => {
-    result += escapeHtml(text.slice(cursor, start));
-    const matched = escapeHtml(text.slice(start, end));
-    const hintEsc = escapeHtml(hint);
-    result += `<span class="kw" onclick="kwTap(this)">${matched}<span class="kw-tip">${hintEsc}</span></span>`;
-    cursor = end;
-  });
-  result += escapeHtml(text.slice(cursor));
-  return result;
-}
-
-// Генерує варіанти для пошуку з урахуванням відмінювання
-function getStemVariants(phrase) {
-  const variants = new Set([phrase]);
-  const p = phrase.toLowerCase();
-  const words = p.split(/\s+/);
-  
-  const stem = (w) => {
-    if (w.length < 5) return w;
-    const minLen = Math.max(4, Math.floor(w.length * 0.6));
-    return w.slice(0, minLen);
-  };
-  
-  // Слова з дефісом — шукаємо кожну частину окремо
-  if (p.includes('-')) {
-    const hyphenParts = p.split('-');
-    hyphenParts.forEach(part => {
-      if (part.length >= 4) {
-        variants.add(part);
-        const s = stem(part);
-        if (s.length >= 4) variants.add(s);
-      }
-    });
-  }
-  
-  // Всі довгі слова у фразі (≥5 символів)
-  words.forEach(w => {
-    if (w.length >= 5) {
-      variants.add(w);
-      const s = stem(w);
-      if (s.length >= 4) variants.add(s);
-    }
-  });
-  
-  // Коротке слово якщо фраза однослівна
-  if (words.length === 1) {
-    const s = stem(p);
-    if (s.length >= 4) variants.add(s);
-  }
-  
-  return [...variants].filter(v => v.length >= 4);
-}
-
-// Тап — показати підказку
-function kwTap(el) {
-  const wasVisible = el.classList.contains('tip-visible');
-  document.querySelectorAll('.kw.tip-visible').forEach(k => k.classList.remove('tip-visible'));
-  if (!wasVisible) el.classList.add('tip-visible');
-}
-
 function escapeHtml(s) {
   return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
-function escapeRegex(s) {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-// Клік в стороні — закрити підказку
-document.addEventListener('click', e => {
-  if (!e.target.closest('.kw')) {
-    document.querySelectorAll('.kw.tip-visible').forEach(k => k.classList.remove('tip-visible'));
-  }
-});
 
 // ══ STORAGE ══
 const load = k => { try { return JSON.parse(localStorage.getItem(k)||'null'); } catch { return null; } };
@@ -987,18 +799,9 @@ function incSessions() { localStorage.setItem('krok_sessions', getSessions()+1);
 async function init() {
   try {
     setLoad(10);
-    // Паралельно завантажуємо questions.json і keywords.json
-    const [rQ, rK] = await Promise.all([
-      fetch('questions.json'),
-      fetch('keywords.json').catch(() => null)
-    ]);
+    const r = await fetch('questions.json');
     setLoad(50);
-    DB = await rQ.json();
-    if (rK && rK.ok) {
-      KEYWORDS = await rK.json();
-      // Сортуємо фрази: довші спочатку (щоб уникнути підміни підрядків)
-      KW_SORTED = Object.keys(KEYWORDS).sort((a,b) => b.length - a.length);
-    }
+    DB = await r.json();
     setLoad(95);
     setTimeout(() => { buildHomeUI(); showScreen('screen-home'); }, 300);
   } catch(e) {
@@ -1313,7 +1116,6 @@ function launchTopicQuiz() {
   incSessions();
   document.getElementById('q-subj').textContent = `${currentSubject} · ${currentTopic}`;
   showScreen('screen-quiz');
-  prefetchSession(SESSION);
   renderQ();
 }
 
@@ -1341,121 +1143,144 @@ function startMistakesQuiz() {
   if (setupMistakesTopic !== '__all__') label += ` · ${setupMistakesTopic}`;
   document.getElementById('q-subj').textContent = label;
   showScreen('screen-quiz');
-  prefetchSession(SESSION);
   renderQ();
 }
 
-// ══ AI API KEY (зберігається в localStorage, не в коді) ══
-function getApiKey() { return localStorage.getItem('anthropic_api_key') || ''; }
-function setApiKey(key) { localStorage.setItem('anthropic_api_key', key.trim()); }
+// ══ MANUAL KEYWORD HIGHLIGHTING ══
+// Зберігаємо: { "qKey": ["фраза1", "фраза2", ...] }
+// qKey = перші 80 символів питання
 
-// ══ AI KEYWORD HIGHLIGHTING ══
-const AI_CACHE = {}; // кеш: qText → [phrase1, phrase2, ...]
-let AI_QUEUE = []; // черга на обробку
-let AI_RUNNING = 0; // скільки паралельних запитів зараз
-const AI_PARALLEL = 3; // максимум паралельних запитів
+let selectMode = false;
 
-// Запускає batch prefetch для всієї сесії
-function prefetchSession(session) {
-  if (!kwEnabled || !getApiKey()) return;
-  AI_QUEUE = [];
-  session.forEach((q, i) => {
-    const txt = Array.isArray(q) ? q[1] : q.question;
-    if (txt && !AI_CACHE[txt]) AI_QUEUE.push(txt);
-  });
-  // Запускаємо паралельно
-  for (let i = 0; i < Math.min(AI_PARALLEL, AI_QUEUE.length); i++) {
-    processAIQueue();
+function qKwKey(qText) {
+  return 'kw_' + qText.substring(0, 80).replace(/\s+/g, '_');
+}
+
+function loadKw(qText) {
+  try { return JSON.parse(localStorage.getItem(qKwKey(qText)) || '[]'); } catch { return []; }
+}
+
+function saveKw(qText, phrases) {
+  try { localStorage.setItem(qKwKey(qText), JSON.stringify(phrases)); } catch {}
+}
+
+function addKwPhrase(qText, phrase) {
+  const phrases = loadKw(qText);
+  const norm = phrase.trim();
+  if (!norm || phrases.includes(norm)) return;
+  phrases.push(norm);
+  saveKw(qText, phrases);
+}
+
+function removeKwPhrase(qText, phrase) {
+  let phrases = loadKw(qText);
+  phrases = phrases.filter(p => p !== phrase);
+  saveKw(qText, phrases);
+}
+
+function toggleSelectMode() {
+  selectMode = !selectMode;
+  const btn = document.getElementById('kw-toggle-btn');
+  const hint = document.getElementById('select-hint');
+  const quizBody = document.querySelector('.quiz-body');
+
+  if (selectMode) {
+    btn.classList.add('select-active');
+    btn.textContent = '✏️';
+    if (hint) hint.style.display = 'block';
+    if (quizBody) quizBody.classList.add('select-mode');
+  } else {
+    btn.classList.remove('select-active');
+    btn.textContent = '✏️';
+    if (hint) hint.style.display = 'none';
+    if (quizBody) quizBody.classList.remove('select-mode');
   }
 }
 
-async function processAIQueue() {
-  const txt = AI_QUEUE.shift();
-  if (!txt) return;
-  AI_RUNNING++;
-  await getAIKeywords(txt);
-  AI_RUNNING--;
-  if (AI_QUEUE.length > 0) processAIQueue();
+// Застосувати збережені виділення до тексту питання
+function applyKwHighlights(qText) {
+  const qtEl = document.getElementById('q-text');
+  if (!qtEl) return;
+  const phrases = loadKw(qText);
+  if (!phrases.length) {
+    qtEl.innerHTML = escapeHtml(qText);
+    return;
+  }
+  qtEl.innerHTML = buildHighlightedHtml(qText, phrases);
 }
 
-async function getAIKeywords(qText) {
-  if (AI_CACHE[qText] !== undefined) return AI_CACHE[qText];
-  const key = getApiKey();
-  if (!key) { AI_CACHE[qText] = []; return []; }
-
-  try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': key,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 120,
-        system: `Ти аналізуєш питання з медичного іспиту КРОК-1 (українська мова). Знайди 3-5 найважливіших фраз у тексті питання, які одразу підказують правильну відповідь. Це можуть бути: тип препарату, симптом, діагноз, механізм дії, спосіб застосування, характерна ознака. Поверни ТІЛЬКИ JSON масив — точні фрази з тексту питання, без пояснень.
-Приклади:
-Питання про "антикоагулянт прямої дії для місцевого вживання" → ["антикоагулянт прямої дії","місцевого вживання","біль у голені","по ходу вени"]
-Питання про "фарбування за Цілем-Нільсеном" → ["фарбування за Цілем-Нільсеном","кислотостійкі бактерії"]
-Питання про "β2-адреноміметик при бронхоспазмі" → ["β2-адреноміметик","бронхоспазм","напад бронхіальної астми"]`,
-        messages: [{ role: 'user', content: qText }]
-      })
-    });
-    const data = await resp.json();
-    const raw = data.content?.[0]?.text || '[]';
-    const clean = raw.replace(/```json|```/g, '').trim();
-    const phrases = JSON.parse(clean);
-    AI_CACHE[qText] = Array.isArray(phrases) ? phrases.filter(p => p && p.length >= 3) : [];
-  } catch(e) {
-    AI_CACHE[qText] = [];
-  }
-
-  // Якщо це питання зараз на екрані — одразу підсвітити
-  if (SESSION[sessionIdx]) {
-    const curTxt = Array.isArray(SESSION[sessionIdx]) ? SESSION[sessionIdx][1] : SESSION[sessionIdx].question;
-    if (curTxt === qText && kwEnabled) {
-      const qtEl = document.getElementById('q-text');
-      if (qtEl && AI_CACHE[qText].length) {
-        qtEl.innerHTML = highlightPhrases(qText, AI_CACHE[qText]);
-      }
-    }
-  }
-  return AI_CACHE[qText];
-}
-
-function highlightPhrases(text, phrases) {
+function buildHighlightedHtml(text, phrases) {
   if (!phrases || !phrases.length) return escapeHtml(text);
-  
-  // Знаходимо позиції всіх фраз (case-insensitive)
   const positions = [];
-  const lowerText = text.toLowerCase();
-  
+  const lower = text.toLowerCase();
   phrases.forEach(phrase => {
-    if (!phrase || phrase.length < 3) return;
+    if (!phrase || phrase.length < 2) return;
     const lp = phrase.toLowerCase();
-    let idx = lowerText.indexOf(lp);
-    while (idx !== -1) {
-      const end = idx + phrase.length;
-      const overlap = positions.some(p => idx < p.end && end > p.start);
-      if (!overlap) positions.push({ start: idx, end });
-      idx = lowerText.indexOf(lp, idx + 1);
+    let i = lower.indexOf(lp);
+    while (i !== -1) {
+      const end = i + phrase.length;
+      if (!positions.some(p => i < p.end && end > p.start)) {
+        positions.push({ start: i, end, phrase });
+      }
+      i = lower.indexOf(lp, i + 1);
     }
   });
-  
   if (!positions.length) return escapeHtml(text);
   positions.sort((a, b) => a.start - b.start);
-  
-  let result = '';
-  let cursor = 0;
-  positions.forEach(({ start, end }) => {
+  let result = '', cursor = 0;
+  positions.forEach(({ start, end, phrase }) => {
     result += escapeHtml(text.slice(cursor, start));
-    result += `<mark class="ai-kw">${escapeHtml(text.slice(start, end))}</mark>`;
+    result += `<mark class="user-kw" data-phrase="${escapeHtml(phrase)}">${escapeHtml(text.slice(start, end))}</mark>`;
     cursor = end;
   });
-  result += escapeHtml(text.slice(cursor));
-  return result;
+  return result + escapeHtml(text.slice(cursor));
+}
+
+// Обробка mouseup/touchend — виділення тексту або видалення марки
+document.addEventListener('mouseup', handleTextSelection);
+document.addEventListener('touchend', handleTextSelection);
+
+function handleTextSelection(e) {
+  // Клік по існуючій марці — видалити
+  const mark = e.target.closest('mark.user-kw');
+  if (mark) {
+    const q = SESSION[sessionIdx];
+    if (!q) return;
+    const qText = Array.isArray(q) ? q[1] : q.question;
+    const phrase = mark.dataset.phrase;
+    mark.classList.add('removing');
+    setTimeout(() => {
+      removeKwPhrase(qText, phrase);
+      applyKwHighlights(qText);
+    }, 200);
+    return;
+  }
+
+  // Тільки в режимі виділення і тільки в q-text
+  if (!selectMode) return;
+  const qtEl = document.getElementById('q-text');
+  if (!qtEl) return;
+
+  const sel = window.getSelection();
+  if (!sel || sel.isCollapsed || !sel.toString().trim()) return;
+
+  // Перевіряємо що виділення всередині q-text
+  const range = sel.getRangeAt(0);
+  if (!qtEl.contains(range.commonAncestorContainer)) return;
+
+  const phrase = sel.toString().trim();
+  if (phrase.length < 2 || phrase.length > 100) { sel.removeAllRanges(); return; }
+
+  const q = SESSION[sessionIdx];
+  if (!q) return;
+  const qText = Array.isArray(q) ? q[1] : q.question;
+
+  // Перевіряємо що фраза є в тексті питання
+  if (!qText.toLowerCase().includes(phrase.toLowerCase())) { sel.removeAllRanges(); return; }
+
+  sel.removeAllRanges();
+  addKwPhrase(qText, phrase);
+  applyKwHighlights(qText);
 }
 
 function renderQ() {
@@ -1476,17 +1301,8 @@ function renderQ() {
   document.getElementById('q-fill').style.width = `${(sessionIdx/total)*100}%`;
   document.getElementById('q-label').textContent = `Питання ${sessionIdx+1}`;
 
-  // Питання — миттєво з кешу або без підсвічування
-  const qtEl = document.getElementById('q-text');
-  const cached = AI_CACHE[qText];
-  if (kwEnabled && cached && cached.length) {
-    qtEl.innerHTML = highlightPhrases(qText, cached);
-  } else {
-    qtEl.innerHTML = escapeHtml(qText);
-    if (kwEnabled && getApiKey() && cached === undefined) {
-      getAIKeywords(qText);
-    }
-  }
+  // Питання з виділеними словами з localStorage
+  applyKwHighlights(qText);
 
   // Dots
   const dotsEl = document.getElementById('dots-row');
