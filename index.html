@@ -318,6 +318,58 @@ html, body {
 }
 .opt-text { font-size: 14px; line-height: 1.4; color: var(--text); flex: 1; font-family: 'Atkinson Hyperlegible', sans-serif; font-weight: 700; }
 
+/* ── KEYWORD HIGHLIGHTS ── */
+.kw {
+  border-bottom: 2px solid var(--accent);
+  color: var(--accent);
+  cursor: help;
+  position: relative;
+  display: inline;
+}
+.kw-tip {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1a1a1e;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text);
+  white-space: nowrap;
+  max-width: 260px;
+  white-space: normal;
+  z-index: 999;
+  pointer-events: none;
+  font-weight: 400;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+}
+.kw:hover .kw-tip,
+.kw.tip-visible .kw-tip { display: block; }
+.kw-toggle-btn {
+  position: fixed;
+  bottom: 80px;
+  right: 16px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  color: var(--text-dim);
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 100;
+  transition: all 0.15s;
+}
+.kw-toggle-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+.q-text .kw { font-size: inherit; font-weight: inherit; }
+
 .opt.correct { background: var(--correct-bg); border-color: var(--correct-border); }
 .opt.correct .opt-letter { background: var(--correct-border); color: var(--correct-text); }
 .opt.correct .opt-text { color: var(--correct-text); }
@@ -613,6 +665,9 @@ html, body {
   <div class="quiz-hint" id="quiz-hint-bar">Оберіть варіант відповіді</div>
 </div>
 
+<!-- Keyword highlight toggle button -->
+<button class="kw-toggle-btn active" id="kw-toggle-btn" title="Ключові слова" onclick="toggleKeywords()">🔑</button>
+
 <!-- RESULT -->
 <div class="screen" id="screen-result">
   <div class="result-mode" id="r-mode">Результат</div>
@@ -642,8 +697,10 @@ html, body {
     </div>
 
     <div class="setup-section" id="setup-subject-section" style="display:none">
-      <span class="setup-label">Предмет (для помилок)</span>
+      <span class="setup-label">Предмет</span>
       <div class="subject-chips-wrap" id="setup-subject-chips"></div>
+      <span class="setup-label" style="margin-top:14px" id="setup-topic-label">Тема</span>
+      <div class="subject-chips-wrap" id="setup-topic-chips"></div>
     </div>
 
     <div class="setup-avail" id="setup-avail"></div>
@@ -662,7 +719,7 @@ html, body {
       </div>
       <button onclick="openMistakesSetup()" style="background:var(--wrong-bg);border:2px solid var(--wrong-border);color:var(--wrong-text);padding:10px 14px;border-radius:var(--radius);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">Тренувати →</button>
     </div>
-    <div style="font-size:12px;color:var(--text-dimmer);margin-bottom:20px">Питання залишаються поки не видалиш вручну (×)</div>
+    <div style="font-size:12px;color:var(--text-dimmer);margin-bottom:16px">Питання залишаються поки не видалиш вручну (×)</div>
     <div id="mistakes-list"></div>
   </div>
 </div>
@@ -681,6 +738,79 @@ let sessionResults = [];
 let setupMode = 'topic';
 let setupCount = 20;
 let setupMistakesSubject = '__all__';
+let setupMistakesTopic = '__all__';
+
+// ══ KEYWORDS ══
+let KEYWORDS = {}; // { phrase: hint }
+let kwEnabled = true; // підсвічування увімкнено
+let KW_SORTED = []; // відсортовані фрази (довші спочатку)
+
+function toggleKeywords() {
+  kwEnabled = !kwEnabled;
+  const btn = document.getElementById('kw-toggle-btn');
+  btn.classList.toggle('active', kwEnabled);
+  btn.title = kwEnabled ? 'Ключові слова увімкнено' : 'Ключові слова вимкнено';
+  // перерендерити поточне питання якщо в квізі
+  const quiz = document.getElementById('screen-quiz');
+  if (quiz && quiz.classList.contains('active')) {
+    applyKeywordsToCurrentQ();
+  }
+}
+
+function applyKeywordsToCurrentQ() {
+  const qtEl = document.getElementById('q-text');
+  const optsEl = document.querySelectorAll('.opt-text');
+  if (!qtEl) return;
+
+  // Відновити чистий текст (зберігаємо в data-raw)
+  if (!qtEl.dataset.raw) qtEl.dataset.raw = qtEl.textContent;
+  qtEl.innerHTML = kwEnabled ? highlightKeywords(qtEl.dataset.raw) : escapeHtml(qtEl.dataset.raw);
+
+  optsEl.forEach(el => {
+    if (!el.dataset.raw) el.dataset.raw = el.textContent;
+    el.innerHTML = kwEnabled ? highlightKeywords(el.dataset.raw) : escapeHtml(el.dataset.raw);
+  });
+}
+
+function highlightKeywords(text) {
+  if (!kwEnabled || !KW_SORTED.length) return escapeHtml(text);
+  
+  // Працюємо по символах — заміняємо найдовші збіги спочатку
+  // Спочатку escapeHtml, потім вставляємо spans
+  let result = escapeHtml(text);
+  
+  KW_SORTED.forEach(phrase => {
+    const escaped = escapeHtml(phrase);
+    // case-insensitive пошук, але зберігаємо оригінальний регістр
+    const regex = new RegExp('(?<![>\\w])(' + escapeRegex(escaped) + ')(?![\\w<])', 'gi');
+    const hint = escapeHtml(KEYWORDS[phrase] || '');
+    result = result.replace(regex, (match) => {
+      return `<span class="kw">${match}<span class="kw-tip">${hint}</span></span>`;
+    });
+  });
+  return result;
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escapeRegex(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Тап на мобільному — показати/сховати підказку
+document.addEventListener('click', e => {
+  const kw = e.target.closest('.kw');
+  if (kw) {
+    // Закрити всі інші
+    document.querySelectorAll('.kw.tip-visible').forEach(k => { if(k!==kw) k.classList.remove('tip-visible'); });
+    kw.classList.toggle('tip-visible');
+    e.stopPropagation();
+    return;
+  }
+  // Клік в стороні — закрити
+  document.querySelectorAll('.kw.tip-visible').forEach(k => k.classList.remove('tip-visible'));
+});
 
 // ══ STORAGE ══
 const load = k => { try { return JSON.parse(localStorage.getItem(k)||'null'); } catch { return null; } };
@@ -724,9 +854,18 @@ function incSessions() { localStorage.setItem('krok_sessions', getSessions()+1);
 async function init() {
   try {
     setLoad(10);
-    const r = await fetch('questions.json');
+    // Паралельно завантажуємо questions.json і keywords.json
+    const [rQ, rK] = await Promise.all([
+      fetch('questions.json'),
+      fetch('keywords.json').catch(() => null)
+    ]);
     setLoad(50);
-    DB = await r.json();
+    DB = await rQ.json();
+    if (rK && rK.ok) {
+      KEYWORDS = await rK.json();
+      // Сортуємо фрази: довші спочатку (щоб уникнути підміни підрядків)
+      KW_SORTED = Object.keys(KEYWORDS).sort((a,b) => b.length - a.length);
+    }
     setLoad(95);
     setTimeout(() => { buildHomeUI(); showScreen('screen-home'); }, 300);
   } catch(e) {
@@ -902,15 +1041,19 @@ function openSetup() {
   if (isMistakes) {
     subjSection.style.display = 'block';
     const mistakeSubjects = [...new Set(Object.values(m).map(mi => mi.subject))].sort();
+    
+    // Subject chips
     const subjEl = document.getElementById('setup-subject-chips');
     subjEl.innerHTML = '';
     const allSubjBtn = document.createElement('button');
     allSubjBtn.className = 'subj-chip' + (setupMistakesSubject === '__all__' ? ' active' : '');
-    allSubjBtn.textContent = 'Усі предмети';
+    allSubjBtn.textContent = 'Усі';
     allSubjBtn.onclick = () => {
       setupMistakesSubject = '__all__';
-      document.querySelectorAll('.subj-chip').forEach(c => c.classList.remove('active'));
+      setupMistakesTopic = '__all__';
+      document.querySelectorAll('#setup-subject-chips .subj-chip').forEach(c => c.classList.remove('active'));
       allSubjBtn.classList.add('active');
+      renderTopicChips(m);
       updateSetupAvail();
     };
     subjEl.appendChild(allSubjBtn);
@@ -921,12 +1064,17 @@ function openSetup() {
       btn.textContent = `${s} (${cnt})`;
       btn.onclick = () => {
         setupMistakesSubject = s;
-        document.querySelectorAll('.subj-chip').forEach(c => c.classList.remove('active'));
+        setupMistakesTopic = '__all__';
+        document.querySelectorAll('#setup-subject-chips .subj-chip').forEach(c => c.classList.remove('active'));
         btn.classList.add('active');
+        renderTopicChips(m);
         updateSetupAvail();
       };
       subjEl.appendChild(btn);
     });
+
+    // Topic chips
+    renderTopicChips(m);
   } else {
     subjSection.style.display = 'none';
   }
@@ -935,11 +1083,60 @@ function openSetup() {
   showScreen('screen-setup');
 }
 
+function renderTopicChips(m) {
+  const topicEl = document.getElementById('setup-topic-chips');
+  const label = document.getElementById('setup-topic-label');
+  topicEl.innerHTML = '';
+
+  // Get topics for current subject filter
+  const filtered = Object.values(m).filter(mi =>
+    setupMistakesSubject === '__all__' || mi.subject === setupMistakesSubject
+  );
+  const topics = [...new Set(filtered.map(mi => mi.topic || 'Без теми'))].sort();
+
+  if (topics.length <= 1) {
+    label.style.display = 'none';
+    topicEl.style.display = 'none';
+    return;
+  }
+  label.style.display = 'block';
+  topicEl.style.display = 'flex';
+
+  const allBtn = document.createElement('button');
+  allBtn.className = 'subj-chip' + (setupMistakesTopic === '__all__' ? ' active' : '');
+  allBtn.textContent = 'Усі теми';
+  allBtn.onclick = () => {
+    setupMistakesTopic = '__all__';
+    document.querySelectorAll('#setup-topic-chips .subj-chip').forEach(c => c.classList.remove('active'));
+    allBtn.classList.add('active');
+    updateSetupAvail();
+  };
+  topicEl.appendChild(allBtn);
+
+  topics.forEach(t => {
+    const cnt = filtered.filter(mi => (mi.topic || 'Без теми') === t).length;
+    const btn = document.createElement('button');
+    btn.className = 'subj-chip' + (setupMistakesTopic === t ? ' active' : '');
+    btn.textContent = `${t} (${cnt})`;
+    btn.onclick = () => {
+      setupMistakesTopic = t;
+      document.querySelectorAll('#setup-topic-chips .subj-chip').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      updateSetupAvail();
+    };
+    topicEl.appendChild(btn);
+  });
+}
+
 function updateSetupAvail() {
   const m = getMistakes();
   let pool;
   if (setupMode === 'mistakes') {
-    pool = Object.values(m).filter(mi => setupMistakesSubject === '__all__' || mi.subject === setupMistakesSubject);
+    pool = Object.values(m).filter(mi => {
+      const subjOk = setupMistakesSubject === '__all__' || mi.subject === setupMistakesSubject;
+      const topicOk = setupMistakesTopic === '__all__' || (mi.topic || 'Без теми') === setupMistakesTopic;
+      return subjOk && topicOk;
+    });
   } else {
     pool = DB[currentSubject][currentTopic] || [];
   }
@@ -988,13 +1185,13 @@ function launchTopicQuiz() {
 
 function startMistakesQuiz() {
   const m = getMistakes();
-  let pool = Object.values(m);
+  let pool = Object.values(m).filter(mi => {
+    const subjOk = setupMistakesSubject === '__all__' || mi.subject === setupMistakesSubject;
+    const topicOk = setupMistakesTopic === '__all__' || (mi.topic || 'Без теми') === setupMistakesTopic;
+    return subjOk && topicOk;
+  });
 
-  if (setupMistakesSubject !== '__all__') {
-    pool = pool.filter(mi => mi.subject === setupMistakesSubject);
-  }
-
-  if (!pool.length) { alert('Немає помилок для вибраного предмету!'); return; }
+  if (!pool.length) { alert('Немає помилок для вибраного фільтру!'); return; }
 
   pool.sort((a,b) => b.wrongCount - a.wrongCount);
   const count = setupCount === 9999 ? pool.length : Math.min(setupCount, pool.length);
@@ -1002,11 +1199,12 @@ function startMistakesQuiz() {
   SESSION = pool.map(mi => [mi.subject, mi.question, mi.answers, mi.correctText]);
 
   currentMode = 'mistakes';
-  sessionIdx = 0;
-  sessionResults = [];
+  sessionIdx = 0; sessionResults = [];
   incSessions();
 
-  const label = setupMistakesSubject === '__all__' ? 'Робота над помилками' : `Помилки · ${setupMistakesSubject}`;
+  let label = 'Робота над помилками';
+  if (setupMistakesSubject !== '__all__') label += ` · ${setupMistakesSubject}`;
+  if (setupMistakesTopic !== '__all__') label += ` · ${setupMistakesTopic}`;
   document.getElementById('q-subj').textContent = label;
   showScreen('screen-quiz');
   renderQ();
@@ -1028,7 +1226,11 @@ function renderQ() {
   document.getElementById('q-prog').textContent = `${sessionIdx+1} / ${total}`;
   document.getElementById('q-fill').style.width = `${(sessionIdx/total)*100}%`;
   document.getElementById('q-label').textContent = `Питання ${sessionIdx+1}`;
-  document.getElementById('q-text').textContent = qText;
+
+  // Питання з підсвічуванням ключових слів
+  const qtEl = document.getElementById('q-text');
+  qtEl.dataset.raw = qText;
+  qtEl.innerHTML = kwEnabled ? highlightKeywords(qText) : escapeHtml(qText);
 
   // Dots
   const dotsEl = document.getElementById('dots-row');
@@ -1039,7 +1241,7 @@ function renderQ() {
     dotsEl.appendChild(d);
   }
 
-  // Options
+  // Options з підсвічуванням
   const letters = ['А','Б','В','Г','Д'];
   const optEl = document.getElementById('options');
   optEl.innerHTML = '';
@@ -1047,7 +1249,8 @@ function renderQ() {
     const btn = document.createElement('button');
     btn.className = 'opt';
     btn.setAttribute('data-ci', idx);
-    btn.innerHTML = `<div class="opt-letter">${letters[idx]}</div><div class="opt-text">${ans}</div>`;
+    const ansHtml = kwEnabled ? highlightKeywords(ans) : escapeHtml(ans);
+    btn.innerHTML = `<div class="opt-letter">${letters[idx]}</div><div class="opt-text" data-raw="${ans.replace(/"/g,'&quot;')}">${ansHtml}</div>`;
     btn.onclick = () => selectOpt(idx);
     optEl.appendChild(btn);
   });
@@ -1207,15 +1410,26 @@ function renderMistakesScreen() {
   Object.entries(bySubjTopic).sort().forEach(([subj, topics]) => {
     const subjTotal = Object.values(topics).reduce((s,t)=>s+t.length, 0);
     html += `<div class="mistakes-subject-group">
-      <div class="msg-subj">${subj} <span style="color:var(--text-dimmer);font-size:12px;font-weight:400">(${subjTotal})</span></div>`;
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div class="msg-subj">${subj} <span style="color:var(--text-dimmer);font-size:12px;font-weight:400">(${subjTotal})</span></div>
+        <button onclick="clearBySubject('${subj.replace(/'/g,"\\'")}'))" style="padding:4px 10px;background:transparent;border:1px solid var(--wrong-border);color:var(--wrong-text);border-radius:4px;font-family:inherit;font-size:11px;cursor:pointer">Очистити всі</button>
+      </div>`;
 
     Object.entries(topics).sort().forEach(([topic, list]) => {
-      html += `<div style="margin-bottom:14px">
-        <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.12em;color:var(--text-dimmer);font-family:'JetBrains Mono',monospace;margin-bottom:7px;padding-left:2px">${topic} (${list.length})</div>`;
+      const safeSubj = subj.replace(/'/g,"\\'").replace(/\\/g,'\\\\');
+      const safeTopic = topic.replace(/'/g,"\\'").replace(/\\/g,'\\\\');
+      html += `<div style="margin-bottom:16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid var(--border)">
+          <div style="font-size:12px;font-weight:700;color:var(--accent)">${topic} <span style="color:var(--text-dimmer);font-weight:400">(${list.length})</span></div>
+          <div style="display:flex;gap:8px">
+            <button onclick="trainTopic('${safeSubj}','${safeTopic}')" style="padding:4px 10px;background:var(--wrong-bg);border:1px solid var(--wrong-border);color:var(--wrong-text);border-radius:4px;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer">Тренувати</button>
+            <button onclick="clearByTopic('${safeSubj}','${safeTopic}')" style="padding:4px 10px;background:transparent;border:1px solid var(--border);color:var(--text-dimmer);border-radius:4px;font-family:inherit;font-size:11px;cursor:pointer">Очистити</button>
+          </div>
+        </div>`;
       list.sort((a,b)=>b[1].wrongCount-a[1].wrongCount).forEach(([k,mi]) => {
-        const qShort = mi.question.length > 90 ? mi.question.substring(0,90)+'…' : mi.question;
+        const qShort = mi.question.length > 80 ? mi.question.substring(0,80)+'…' : mi.question;
         const safeKey = k.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-        html += `<div class="mistake-item">
+        html += `<div class="mistake-item" style="border:none;border-bottom:1px solid var(--border);border-radius:0">
           <div class="mi-q">${qShort}</div>
           <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
             <div class="mi-count">×${mi.wrongCount}</div>
@@ -1228,6 +1442,32 @@ function renderMistakesScreen() {
     html += '</div>';
   });
   document.getElementById('mistakes-list').innerHTML = html;
+}
+
+function clearBySubject(subj) {
+  if (!confirm(`Очистити всі помилки з предмету "${subj}"?`)) return;
+  const m = getMistakes();
+  Object.keys(m).forEach(k => { if (m[k].subject === subj) delete m[k]; });
+  saveMistakesData(m);
+  renderMistakesScreen();
+  updateHomeUI();
+}
+
+function clearByTopic(subj, topic) {
+  if (!confirm(`Очистити помилки теми "${topic}"?`)) return;
+  const m = getMistakes();
+  Object.keys(m).forEach(k => {
+    if (m[k].subject === subj && (m[k].topic || 'Без теми') === topic) delete m[k];
+  });
+  saveMistakesData(m);
+  renderMistakesScreen();
+  updateHomeUI();
+}
+
+function trainTopic(subj, topic) {
+  setupMistakesSubject = subj;
+  setupMistakesTopic = topic;
+  openMistakesSetup();
 }
 
 // ══ NAV ══
