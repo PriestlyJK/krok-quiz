@@ -1193,25 +1193,37 @@ function renderMistakesScreen() {
     return;
   }
 
-  // Group by subject
-  const bySubj = {};
+  // Group by subject → topic
+  const bySubjTopic = {};
   entries.forEach(([k, mi]) => {
-    if (!bySubj[mi.subject]) bySubj[mi.subject] = [];
-    bySubj[mi.subject].push([k, mi]);
+    const subj = mi.subject || 'Інші';
+    const topic = mi.topic || 'Без теми';
+    if (!bySubjTopic[subj]) bySubjTopic[subj] = {};
+    if (!bySubjTopic[subj][topic]) bySubjTopic[subj][topic] = [];
+    bySubjTopic[subj][topic].push([k, mi]);
   });
 
   let html = '';
-  Object.entries(bySubj).sort().forEach(([subj, list]) => {
-    html += `<div class="mistakes-subject-group"><div class="msg-subj">${subj} (${list.length})</div>`;
-    list.sort((a,b)=>b[1].wrongCount-a[1].wrongCount).forEach(([k,mi]) => {
-      const qShort = mi.question.length > 90 ? mi.question.substring(0,90)+'…' : mi.question;
-      html += `<div class="mistake-item">
-        <div class="mi-q">${qShort}</div>
-        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
-          <div class="mi-count">×${mi.wrongCount}</div>
-          <div class="mi-delete" onclick="deleteMistake('${k.replace(/'/g,"\\'")}')">×</div>
-        </div>
-      </div>`;
+  Object.entries(bySubjTopic).sort().forEach(([subj, topics]) => {
+    const subjTotal = Object.values(topics).reduce((s,t)=>s+t.length, 0);
+    html += `<div class="mistakes-subject-group">
+      <div class="msg-subj">${subj} <span style="color:var(--text-dimmer);font-size:12px;font-weight:400">(${subjTotal})</span></div>`;
+
+    Object.entries(topics).sort().forEach(([topic, list]) => {
+      html += `<div style="margin-bottom:14px">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.12em;color:var(--text-dimmer);font-family:'JetBrains Mono',monospace;margin-bottom:7px;padding-left:2px">${topic} (${list.length})</div>`;
+      list.sort((a,b)=>b[1].wrongCount-a[1].wrongCount).forEach(([k,mi]) => {
+        const qShort = mi.question.length > 90 ? mi.question.substring(0,90)+'…' : mi.question;
+        const safeKey = k.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+        html += `<div class="mistake-item">
+          <div class="mi-q">${qShort}</div>
+          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+            <div class="mi-count">×${mi.wrongCount}</div>
+            <div class="mi-delete" onclick="deleteMistake('${safeKey}')">×</div>
+          </div>
+        </div>`;
+      });
+      html += `</div>`;
     });
     html += '</div>';
   });
