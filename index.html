@@ -319,40 +319,17 @@ html, body {
 .opt-text { font-size: 14px; line-height: 1.4; color: var(--text); flex: 1; font-family: 'Atkinson Hyperlegible', sans-serif; font-weight: 700; }
 
 /* ── KEYWORD HIGHLIGHTS ── */
-.kw {
-  background: rgba(184,149,106,0.18);
-  color: #f0c97a;
+mark.ai-kw {
+  background: rgba(184,149,106,0.25);
+  color: #f5d08a;
   border-bottom: 2px solid #f0c97a;
   border-radius: 3px;
   padding: 0 2px;
-  cursor: pointer;
-  position: relative;
-  display: inline;
   font-weight: 700;
+  font-style: normal;
+  -webkit-text-decoration: none;
+  text-decoration: none;
 }
-.opt-text .kw { color: inherit; background: rgba(184,149,106,0.22); border-bottom-color: var(--accent); filter: brightness(1.3); }
-.kw-tip {
-  display: none;
-  position: fixed;
-  bottom: 100px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #26262c;
-  border: 1px solid #f0c97a;
-  border-radius: 10px;
-  padding: 10px 14px;
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--text);
-  max-width: min(320px, 90vw);
-  white-space: normal;
-  z-index: 9999;
-  pointer-events: none;
-  font-weight: 400;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.7);
-  text-align: center;
-}
-.kw.tip-visible .kw-tip { display: block; }
 .kw-toggle-btn {
   position: fixed;
   bottom: 80px;
@@ -1291,6 +1268,79 @@ function startMistakesQuiz() {
   renderQ();
 }
 
+// ══ AI KEYWORD HIGHLIGHTING ══
+const AI_CACHE = {}; // кеш: qText → [phrase1, phrase2, ...]
+// Встав свій Anthropic API ключ тут:
+const ANTHROPIC_API_KEY = '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';
+
+async function getAIKeywords(qText) {
+  if (AI_CACHE[qText]) return AI_CACHE[qText];
+  if (!ANTHROPIC_API_KEY || ANTHROPIC_API_KEY === 'YOUR_API_KEY_HERE') {
+    AI_CACHE[qText] = [];
+    return [];
+  }
+  
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 150,
+        system: `Ти аналізуєш питання з медичного іспиту КРОК-1. Знайди 3-6 ключових фраз у тексті питання які ОДРАЗУ підказують правильну відповідь — діагноз, симптом, тип препарату, спосіб застосування тощо. Поверни ЛИШЕ JSON масив точних фраз з тексту (без пояснень, без markdown). Приклад: ["антикоагулянт прямої дії","біль у голені","по ходу вени","місцевого вживання"]`,
+        messages: [{ role: 'user', content: qText }]
+      })
+    });
+    const data = await resp.json();
+    const raw = data.content?.[0]?.text || '[]';
+    const clean = raw.replace(/```json|```/g, '').trim();
+    const phrases = JSON.parse(clean);
+    AI_CACHE[qText] = Array.isArray(phrases) ? phrases : [];
+    return AI_CACHE[qText];
+  } catch(e) {
+    AI_CACHE[qText] = [];
+    return [];
+  }
+}
+
+function highlightPhrases(text, phrases) {
+  if (!phrases || !phrases.length) return escapeHtml(text);
+  
+  // Знаходимо позиції всіх фраз (case-insensitive)
+  const positions = [];
+  const lowerText = text.toLowerCase();
+  
+  phrases.forEach(phrase => {
+    if (!phrase || phrase.length < 3) return;
+    const lp = phrase.toLowerCase();
+    let idx = lowerText.indexOf(lp);
+    while (idx !== -1) {
+      const end = idx + phrase.length;
+      const overlap = positions.some(p => idx < p.end && end > p.start);
+      if (!overlap) positions.push({ start: idx, end });
+      idx = lowerText.indexOf(lp, idx + 1);
+    }
+  });
+  
+  if (!positions.length) return escapeHtml(text);
+  positions.sort((a, b) => a.start - b.start);
+  
+  let result = '';
+  let cursor = 0;
+  positions.forEach(({ start, end }) => {
+    result += escapeHtml(text.slice(cursor, start));
+    result += `<mark class="ai-kw">${escapeHtml(text.slice(start, end))}</mark>`;
+    cursor = end;
+  });
+  result += escapeHtml(text.slice(cursor));
+  return result;
+}
+
 function renderQ() {
   const q = SESSION[sessionIdx];
   const answers = Array.isArray(q) ? q[2] : q.answers;
@@ -1308,10 +1358,10 @@ function renderQ() {
   document.getElementById('q-fill').style.width = `${(sessionIdx/total)*100}%`;
   document.getElementById('q-label').textContent = `Питання ${sessionIdx+1}`;
 
-  // Питання з підсвічуванням ключових слів
+  // Питання — спочатку показуємо без підсвічування
   const qtEl = document.getElementById('q-text');
   qtEl.dataset.raw = qText;
-  qtEl.innerHTML = kwEnabled ? highlightKeywords(qText) : escapeHtml(qText);
+  qtEl.innerHTML = escapeHtml(qText);
 
   // Dots
   const dotsEl = document.getElementById('dots-row');
@@ -1322,7 +1372,7 @@ function renderQ() {
     dotsEl.appendChild(d);
   }
 
-  // Options з підсвічуванням
+  // Options
   const letters = ['А','Б','В','Г','Д'];
   const optEl = document.getElementById('options');
   optEl.innerHTML = '';
@@ -1330,8 +1380,7 @@ function renderQ() {
     const btn = document.createElement('button');
     btn.className = 'opt';
     btn.setAttribute('data-ci', idx);
-    const ansHtml = kwEnabled ? highlightKeywords(ans) : escapeHtml(ans);
-    btn.innerHTML = `<div class="opt-letter">${letters[idx]}</div><div class="opt-text" data-raw="${ans.replace(/"/g,'&quot;')}">${ansHtml}</div>`;
+    btn.innerHTML = `<div class="opt-letter">${letters[idx]}</div><div class="opt-text">${escapeHtml(ans)}</div>`;
     btn.onclick = () => selectOpt(idx);
     optEl.appendChild(btn);
   });
@@ -1345,6 +1394,29 @@ function renderQ() {
 
   // Send to remote if connected
   setTimeout(publishQuestion, 100);
+
+  // Запускаємо AI підсвічування асинхронно (тільки якщо увімкнено)
+  if (kwEnabled) {
+    getAIKeywords(qText).then(phrases => {
+      // Перевіряємо що ми ще на тому самому питанні
+      const currentQ = SESSION[sessionIdx];
+      const currentText = Array.isArray(currentQ) ? currentQ[1] : currentQ.question;
+      if (currentText !== qText) return; // вже перейшли
+      
+      if (phrases.length) {
+        qtEl.innerHTML = highlightPhrases(qText, phrases);
+      }
+    });
+    
+    // Prefetch наступне питання
+    if (sessionIdx + 1 < SESSION.length) {
+      const nextQ = SESSION[sessionIdx + 1];
+      const nextText = Array.isArray(nextQ) ? nextQ[1] : nextQ.question;
+      if (nextText && !AI_CACHE[nextText]) {
+        setTimeout(() => getAIKeywords(nextText), 500);
+      }
+    }
+  }
 }
 
 function selectOpt(idx) {
