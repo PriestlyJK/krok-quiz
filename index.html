@@ -783,9 +783,12 @@ function saveApiKey() {
   document.getElementById('api-key-status').style.color = '#5a9e78';
   kwEnabled = true;
   document.getElementById('kw-toggle-btn').classList.add('active');
-  // очищаємо кеш бо може бути новий ключ
+  // очищаємо кеш і перезапускаємо prefetch
   Object.keys(AI_CACHE).forEach(k => delete AI_CACHE[k]);
-  setTimeout(() => { closeApiModal(); renderQ(); }, 800);
+  setTimeout(() => {
+    closeApiModal();
+    if (SESSION.length) { prefetchSession(SESSION); renderQ(); }
+  }, 800);
 }
 
 // Довге натискання на 🔑 → modal з ключем
@@ -1299,6 +1302,7 @@ function launchTopicQuiz() {
   incSessions();
   document.getElementById('q-subj').textContent = `${currentSubject} · ${currentTopic}`;
   showScreen('screen-quiz');
+  prefetchSession(SESSION);
   renderQ();
 }
 
@@ -1326,30 +1330,48 @@ function startMistakesQuiz() {
   if (setupMistakesTopic !== '__all__') label += ` · ${setupMistakesTopic}`;
   document.getElementById('q-subj').textContent = label;
   showScreen('screen-quiz');
+  prefetchSession(SESSION);
   renderQ();
 }
 
+// ══ AI API KEY (зберігається в localStorage, не в коді) ══
+function getApiKey() { return localStorage.getItem('anthropic_api_key') || ''; }
+function setApiKey(key) { localStorage.setItem('anthropic_api_key', key.trim()); }
+
 // ══ AI KEYWORD HIGHLIGHTING ══
 const AI_CACHE = {}; // кеш: qText → [phrase1, phrase2, ...]
-// Встав свій Anthropic API ключ тут:
+let AI_QUEUE = []; // черга на обробку
+let AI_RUNNING = 0; // скільки паралельних запитів зараз
+const AI_PARALLEL = 3; // максимум паралельних запитів
 
-
-// ══ AI API KEY (зберігається в localStorage, не в коді) ══
-function getApiKey() {
-  return localStorage.getItem('anthropic_api_key') || '';
+// Запускає batch prefetch для всієї сесії
+function prefetchSession(session) {
+  if (!kwEnabled || !getApiKey()) return;
+  AI_QUEUE = [];
+  session.forEach((q, i) => {
+    const txt = Array.isArray(q) ? q[1] : q.question;
+    if (txt && !AI_CACHE[txt]) AI_QUEUE.push(txt);
+  });
+  // Запускаємо паралельно
+  for (let i = 0; i < Math.min(AI_PARALLEL, AI_QUEUE.length); i++) {
+    processAIQueue();
+  }
 }
-function setApiKey(key) {
-  localStorage.setItem('anthropic_api_key', key.trim());
+
+async function processAIQueue() {
+  const txt = AI_QUEUE.shift();
+  if (!txt) return;
+  AI_RUNNING++;
+  await getAIKeywords(txt);
+  AI_RUNNING--;
+  if (AI_QUEUE.length > 0) processAIQueue();
 }
 
 async function getAIKeywords(qText) {
-  if (AI_CACHE[qText]) return AI_CACHE[qText];
+  if (AI_CACHE[qText] !== undefined) return AI_CACHE[qText];
   const key = getApiKey();
-  if (!key) {
-    AI_CACHE[qText] = [];
-    return [];
-  }
-  
+  if (!key) { AI_CACHE[qText] = []; return []; }
+
   try {
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -1361,8 +1383,12 @@ async function getAIKeywords(qText) {
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 150,
-        system: `Ти аналізуєш питання з медичного іспиту КРОК-1. Знайди 3-6 ключових фраз у тексті питання які ОДРАЗУ підказують правильну відповідь — діагноз, симптом, тип препарату, спосіб застосування тощо. Поверни ЛИШЕ JSON масив точних фраз з тексту (без пояснень, без markdown). Приклад: ["антикоагулянт прямої дії","біль у голені","по ходу вени","місцевого вживання"]`,
+        max_tokens: 120,
+        system: `Ти аналізуєш питання з медичного іспиту КРОК-1 (українська мова). Знайди 3-5 найважливіших фраз у тексті питання, які одразу підказують правильну відповідь. Це можуть бути: тип препарату, симптом, діагноз, механізм дії, спосіб застосування, характерна ознака. Поверни ТІЛЬКИ JSON масив — точні фрази з тексту питання, без пояснень.
+Приклади:
+Питання про "антикоагулянт прямої дії для місцевого вживання" → ["антикоагулянт прямої дії","місцевого вживання","біль у голені","по ходу вени"]
+Питання про "фарбування за Цілем-Нільсеном" → ["фарбування за Цілем-Нільсеном","кислотостійкі бактерії"]
+Питання про "β2-адреноміметик при бронхоспазмі" → ["β2-адреноміметик","бронхоспазм","напад бронхіальної астми"]`,
         messages: [{ role: 'user', content: qText }]
       })
     });
@@ -1370,12 +1396,22 @@ async function getAIKeywords(qText) {
     const raw = data.content?.[0]?.text || '[]';
     const clean = raw.replace(/```json|```/g, '').trim();
     const phrases = JSON.parse(clean);
-    AI_CACHE[qText] = Array.isArray(phrases) ? phrases : [];
-    return AI_CACHE[qText];
+    AI_CACHE[qText] = Array.isArray(phrases) ? phrases.filter(p => p && p.length >= 3) : [];
   } catch(e) {
     AI_CACHE[qText] = [];
-    return [];
   }
+
+  // Якщо це питання зараз на екрані — одразу підсвітити
+  if (SESSION[sessionIdx]) {
+    const curTxt = Array.isArray(SESSION[sessionIdx]) ? SESSION[sessionIdx][1] : SESSION[sessionIdx].question;
+    if (curTxt === qText && kwEnabled) {
+      const qtEl = document.getElementById('q-text');
+      if (qtEl && AI_CACHE[qText].length) {
+        qtEl.innerHTML = highlightPhrases(qText, AI_CACHE[qText]);
+      }
+    }
+  }
+  return AI_CACHE[qText];
 }
 
 function highlightPhrases(text, phrases) {
@@ -1428,10 +1464,19 @@ function renderQ() {
   document.getElementById('q-fill').style.width = `${(sessionIdx/total)*100}%`;
   document.getElementById('q-label').textContent = `Питання ${sessionIdx+1}`;
 
-  // Питання — спочатку показуємо без підсвічування
+  // Питання — миттєво з кешу або без підсвічування
   const qtEl = document.getElementById('q-text');
   qtEl.dataset.raw = qText;
-  qtEl.innerHTML = escapeHtml(qText);
+  const cached = AI_CACHE[qText];
+  if (kwEnabled && cached && cached.length) {
+    qtEl.innerHTML = highlightPhrases(qText, cached);
+  } else {
+    qtEl.innerHTML = escapeHtml(qText);
+    // Якщо ще не в кеші — запитуємо (додається в чергу або робить запит)
+    if (kwEnabled && getApiKey() && cached === undefined) {
+      getAIKeywords(qText); // результат прийде і оновить DOM сам (в getAIKeywords)
+    }
+  }
 
   // Dots
   const dotsEl = document.getElementById('dots-row');
@@ -1464,29 +1509,6 @@ function renderQ() {
 
   // Send to remote if connected
   setTimeout(publishQuestion, 100);
-
-  // Запускаємо AI підсвічування асинхронно (тільки якщо увімкнено)
-  if (kwEnabled) {
-    getAIKeywords(qText).then(phrases => {
-      // Перевіряємо що ми ще на тому самому питанні
-      const currentQ = SESSION[sessionIdx];
-      const currentText = Array.isArray(currentQ) ? currentQ[1] : currentQ.question;
-      if (currentText !== qText) return; // вже перейшли
-      
-      if (phrases.length) {
-        qtEl.innerHTML = highlightPhrases(qText, phrases);
-      }
-    });
-    
-    // Prefetch наступне питання
-    if (sessionIdx + 1 < SESSION.length) {
-      const nextQ = SESSION[sessionIdx + 1];
-      const nextText = Array.isArray(nextQ) ? nextQ[1] : nextQ.question;
-      if (nextText && !AI_CACHE[nextText]) {
-        setTimeout(() => getAIKeywords(nextText), 500);
-      }
-    }
-  }
 }
 
 function selectOpt(idx) {
