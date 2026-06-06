@@ -745,6 +745,44 @@ mark.user-kw:hover, mark.user-kw.removing {
   padding: 40px 24px;
   gap: 0;
 }
+
+/* ── EXPLANATION BOX ── */
+.explanation-box {
+  margin: 8px 12px 0;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text);
+}
+.explanation-box .exp-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--accent);
+  font-weight: 700;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.explanation-box .exp-text {
+  color: var(--text-dim);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.exp-loading {
+  display: inline-block;
+  width: 14px; height: 14px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  vertical-align: middle;
+}
 </style>
 </head>
 <body>
@@ -1463,7 +1501,7 @@ function launchScrollQuiz() {
   scrollAnswered = new Array(scrollSession.length).fill(null);
   scrollCorrectIdx = [];
   incSessions();
-  document.body.classList.add('light');
+  // Don't force light — respect current theme
   renderScrollSession();
   showScreen('screen-scroll');
 }
@@ -1533,6 +1571,14 @@ function scrollPick(qi, oi) {
   fb.className = 'scroll-feedback show ' + (isCorrect ? 'ok' : 'fail');
   fb.textContent = isCorrect ? '✓ Правильно!' : `✗ Правильна: ${letters[scrollCorrectIdx[qi]]}`;
 
+  // Show explanation for wrong answers in scroll mode
+  if (!isCorrect) {
+    const shuffled = Array.from(document.getElementById(`sopts-${qi}`).querySelectorAll('.scroll-opt')).map(b => b.querySelector('.scroll-opt-text').textContent);
+    const correctText = shuffled[scrollCorrectIdx[qi]];
+    const wrongText = shuffled[oi];
+    showScrollExplanation(qi, correctText, wrongText, q);
+  }
+
   // Track mistake & progress
   if (!isCorrect) {
     addMistake(Array.isArray(q) ? q : [q.subject, q.question, q.answers, q.correctText]);
@@ -1582,7 +1628,6 @@ function finishScroll() {
 
 function confirmQuitScroll() {
   if (confirm('Вийти зі скрол-режиму?')) {
-    document.body.classList.remove('light');
     if (setupMode === 'mistakes') showMistakesScreen();
     else showSubject(currentSubject);
   }
@@ -1601,13 +1646,11 @@ function showScrollResult() {
   document.getElementById('sr-phrase').textContent = phrases[Math.min(Math.floor(pct/20),5)];
   document.getElementById('sr-note').textContent = answered < total ? `(${total-answered} питань без відповіді)` : '';
 
-  document.body.classList.remove('light');
   updateHomeUI();
   showScreen('screen-scroll-result');
 }
 
 function launchScrollAgain() {
-  document.body.classList.add('light');
   launchScrollQuiz();
 }
 // Зберігаємо: { "qKey": ["фраза1", "фраза2", ...] }
@@ -1839,6 +1882,11 @@ function selectOpt(idx) {
   const fb = document.getElementById('feedback');
   fb.className = 'feedback show '+(isCorrect?'ok':'fail');
   fb.textContent = isCorrect ? '✓ Правильно!' : `✗ Правильна: ${letters[q._ci]}`;
+
+  // Show explanation for wrong answers
+  if (!isCorrect) {
+    showExplanation(q, letters[q._ci], q._sh[q._ci], q._sh[idx]);
+  }
 
   const bn = document.getElementById('btn-next');
   bn.className = 'btn-next show';
@@ -2305,23 +2353,171 @@ function showSaveDialog(q, btn) {
   const d = getSavedFolders();
   const folders = Object.keys(d);
 
-  // Simple folder picker
-  let folderName;
-  if (!folders.length) {
-    folderName = prompt('Назва папки для збереження:');
-    if (!folderName) return;
-  } else {
-    const opts = folders.join('\n');
-    folderName = prompt(`Оберіть папку або введіть нову:\n${opts}\n\nВведіть назву:`);
-    if (!folderName) return;
+  // Build a simple modal-like overlay
+  const existing = document.getElementById('save-dialog-overlay');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'save-dialog-overlay';
+  overlay.style.cssText = `position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:999;display:flex;align-items:flex-end;justify-content:center`;
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+
+  let foldersHtml = '';
+  if (folders.length) {
+    foldersHtml = `<div style="margin-bottom:12px">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.12em;color:var(--text-dimmer);margin-bottom:8px">Існуючі папки</div>
+      <div style="display:flex;flex-wrap:wrap;gap:7px" id="existing-folder-chips">
+        ${folders.map(f => `<button onclick="pickFolder('${f.replace(/'/g,"\\'")}',this)" style="padding:8px 14px;border-radius:6px;border:2px solid var(--border);background:var(--surface2);color:var(--text);font-family:inherit;font-size:13px;cursor:pointer">${escapeHtml(f)} (${d[f].length})</button>`).join('')}
+      </div>
+    </div>`;
   }
 
-  saveQuestion(q, folderName.trim());
-  btn.style.opacity = '1';
-  // Brief feedback
-  btn.textContent = '✅';
-  setTimeout(() => { btn.textContent = '🔖'; }, 1000);
+  overlay.innerHTML = `
+    <div style="background:var(--surface);border-radius:16px 16px 0 0;padding:20px;width:100%;max-width:480px;max-height:80vh;overflow-y:auto">
+      <div style="font-size:16px;font-weight:700;margin-bottom:16px">Зберегти питання</div>
+      ${foldersHtml}
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.12em;color:var(--text-dimmer);margin-bottom:8px">Нова папка</div>
+      <div style="display:flex;gap:8px">
+        <input id="save-folder-input" type="text" placeholder="Назва папки..." style="flex:1;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:inherit;font-size:14px">
+        <button onclick="saveToNewFolder()" style="padding:10px 16px;background:var(--accent);color:#1a1a1e;border:none;border-radius:6px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer">Зберегти</button>
+      </div>
+      <button onclick="document.getElementById('save-dialog-overlay').remove()" style="width:100%;margin-top:12px;padding:12px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-family:inherit;font-size:14px;cursor:pointer">Скасувати</button>
+    </div>`;
+
+  document.body.appendChild(overlay);
+  // Store current q for callbacks
+  overlay._q = q;
+  overlay._btn = btn;
+  document.getElementById('save-folder-input').focus();
+}
+
+function pickFolder(folderName, chipBtn) {
+  const overlay = document.getElementById('save-dialog-overlay');
+  const q = overlay._q;
+  const btn = overlay._btn;
+  saveQuestion(q, folderName);
+  overlay.remove();
+  if (btn) { btn.textContent = '✅'; setTimeout(() => { btn.textContent = '🔖'; btn.style.opacity='1'; }, 1000); }
   updateHomeUI();
+}
+
+function saveToNewFolder() {
+  const overlay = document.getElementById('save-dialog-overlay');
+  const input = document.getElementById('save-folder-input');
+  const name = input.value.trim();
+  if (!name) { input.focus(); return; }
+  const q = overlay._q;
+  const btn = overlay._btn;
+  saveQuestion(q, name);
+  overlay.remove();
+  if (btn) { btn.textContent = '✅'; setTimeout(() => { btn.textContent = '🔖'; btn.style.opacity='1'; }, 1000); }
+  updateHomeUI();
+}
+
+// ══ EXPLANATIONS (Claude API) ══
+const ANTHROPIC_KEY = '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';
+
+async function showExplanation(q, correctLetter, correctText, wrongText) {
+  // Remove old explanation if exists
+  const old = document.getElementById('explanation-box');
+  if (old) old.remove();
+
+  const box = document.createElement('div');
+  box.id = 'explanation-box';
+  box.className = 'explanation-box';
+  box.innerHTML = `<div class="exp-label">💡 Пояснення <span class="exp-loading"></span></div><div class="exp-text">Завантаження...</div>`;
+
+  // Insert after feedback
+  const fb = document.getElementById('feedback');
+  fb.insertAdjacentElement('afterend', box);
+
+  const qText = Array.isArray(q) ? q[1] : q.question;
+  const subject = Array.isArray(q) ? q[0] : q.subject;
+
+  const prompt = `Ти викладач медицини. Студент відповів неправильно на тест КРОК 1.
+
+Питання: ${qText}
+Правильна відповідь: ${correctText}
+Відповідь студента: ${wrongText}
+Предмет: ${subject}
+
+Дай коротке пояснення (3-5 речень) українською мовою:
+1. Чому правильна відповідь "${correctText}" — поясни механізм/суть
+2. Чому відповідь студента "${wrongText}" неправильна
+
+Відповідай чітко і по суті, без зайвих слів.`;
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 300,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await resp.json();
+    const text = data.content?.[0]?.text || 'Не вдалося отримати пояснення.';
+    box.innerHTML = `<div class="exp-label">💡 Пояснення</div><div class="exp-text">${escapeHtml(text)}</div>`;
+  } catch(e) {
+    box.innerHTML = `<div class="exp-label">💡 Пояснення</div><div class="exp-text" style="color:var(--text-dimmer)">Немає інтернету або помилка API.</div>`;
+  }
+}
+
+// Also add explanation in scroll mode
+async function showScrollExplanation(qi, correctText, wrongText, q) {
+  const containerId = `sexp-${qi}`;
+  let box = document.getElementById(containerId);
+  if (box) return; // already shown
+
+  box = document.createElement('div');
+  box.id = containerId;
+  box.className = 'explanation-box';
+  box.style.margin = '4px 10px 10px';
+  box.innerHTML = `<div class="exp-label">💡 Пояснення <span class="exp-loading"></span></div><div class="exp-text">Завантаження...</div>`;
+
+  const card = document.getElementById(`sq-${qi}`);
+  if (card) card.appendChild(box);
+
+  const qText = Array.isArray(q) ? q[1] : q.question;
+  const subject = Array.isArray(q) ? q[0] : q.subject;
+
+  const prompt = `Ти викладач медицини. Студент відповів неправильно на тест КРОК 1.
+
+Питання: ${qText}
+Правильна відповідь: ${correctText}
+Відповідь студента: ${wrongText}
+Предмет: ${subject}
+
+Дай коротке пояснення (3-5 речень) українською мовою чому правильна відповідь правильна і чому відповідь студента неправильна. По суті, без зайвих слів.`;
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 300,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await resp.json();
+    const text = data.content?.[0]?.text || 'Не вдалося отримати пояснення.';
+    box.innerHTML = `<div class="exp-label">💡 Пояснення</div><div class="exp-text">${escapeHtml(text)}</div>`;
+  } catch(e) {
+    box.innerHTML = `<div class="exp-label">💡 Пояснення</div><div class="exp-text" style="color:var(--text-dimmer)">Немає інтернету або помилка API.</div>`;
+  }
 }
 
 init();
