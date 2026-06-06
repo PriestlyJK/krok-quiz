@@ -39,6 +39,38 @@
   --opt-e-text: #d4a0c0;
 }
 
+/* ── LIGHT THEME for scroll mode ── */
+body.light {
+  --bg: #f5f4f0;
+  --surface: #ffffff;
+  --surface2: #f0eeea;
+  --border: #e0ddd8;
+  --border2: #ccc9c2;
+  --text: #1a1a1e;
+  --text-dim: #6b6866;
+  --text-dimmer: #a8a5a0;
+  --accent: #8b6a3e;
+  --accent-dim: rgba(139,106,62,0.1);
+  --correct: #2d7a52;
+  --correct-bg: #eaf6ef;
+  --correct-border: #7ec99a;
+  --correct-text: #1a5c38;
+  --wrong: #c0392b;
+  --wrong-bg: #fdf0ef;
+  --wrong-border: #e8a09a;
+  --wrong-text: #922b21;
+  --opt-a: #1a4a7a;
+  --opt-a-text: #e8f0f8;
+  --opt-b: #4a2a7a;
+  --opt-b-text: #f0e8f8;
+  --opt-c: #7a4a1a;
+  --opt-c-text: #f8f0e8;
+  --opt-d: #1a5a4a;
+  --opt-d-text: #e8f8f4;
+  --opt-e: #5a2a4a;
+  --opt-e-text: #f8e8f4;
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
 html, body {
@@ -577,6 +609,142 @@ mark.user-kw:hover, mark.user-kw.removing {
   color: var(--wrong-text);
 }
 .setup-avail { font-size: 13px; color: var(--text-dimmer); margin-top: 12px; text-align: center; }
+
+/* ── SCROLL MODE ── */
+#screen-scroll {
+  background: var(--bg);
+}
+#screen-scroll .scroll-body {
+  padding: 0 0 60px;
+}
+.scroll-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.scroll-back { color: var(--accent); font-size: 20px; cursor: pointer; flex-shrink: 0; }
+.scroll-progress-wrap { flex: 1; }
+.scroll-progress-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.scroll-progress-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.3s; }
+.scroll-progress-txt { font-size: 12px; color: var(--text-dim); margin-top: 4px; text-align: right; }
+.scroll-finish-btn {
+  padding: 8px 14px;
+  background: var(--accent);
+  color: var(--bg);
+  border: none;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.scroll-q-card {
+  margin: 12px 12px 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.scroll-q-num {
+  font-size: 11px;
+  color: var(--text-dimmer);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  padding: 12px 16px 0;
+}
+.scroll-q-text {
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.6;
+  color: var(--text);
+  padding: 8px 16px 14px;
+}
+.scroll-opts { padding: 0 10px 12px; display: flex; flex-direction: column; gap: 7px; }
+.scroll-opt {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--surface2);
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.12s;
+  text-align: left;
+  width: 100%;
+  font-family: inherit;
+}
+.scroll-opt:active:not([disabled]) { opacity: 0.8; transform: scale(0.99); }
+.scroll-opt-letter {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.scroll-opt[data-ci="0"] { border-color: var(--opt-a); }
+.scroll-opt[data-ci="0"] .scroll-opt-letter { background: var(--opt-a); color: var(--opt-a-text); }
+.scroll-opt[data-ci="1"] { border-color: var(--opt-b); }
+.scroll-opt[data-ci="1"] .scroll-opt-letter { background: var(--opt-b); color: var(--opt-b-text); }
+.scroll-opt[data-ci="2"] { border-color: var(--opt-c); }
+.scroll-opt[data-ci="2"] .scroll-opt-letter { background: var(--opt-c); color: var(--opt-c-text); }
+.scroll-opt[data-ci="3"] { border-color: var(--opt-d); }
+.scroll-opt[data-ci="3"] .scroll-opt-letter { background: var(--opt-d); color: var(--opt-d-text); }
+.scroll-opt[data-ci="4"] { border-color: var(--opt-e); }
+.scroll-opt[data-ci="4"] .scroll-opt-letter { background: var(--opt-e); color: var(--opt-e-text); }
+.scroll-opt-text { font-size: 15px; line-height: 1.5; color: var(--text); flex: 1; }
+
+.scroll-opt.correct {
+  background: var(--correct-bg);
+  border-color: var(--correct-border);
+}
+.scroll-opt.correct .scroll-opt-letter { background: var(--correct); color: #fff; }
+.scroll-opt.correct .scroll-opt-text { color: var(--correct-text); font-weight: 700; }
+
+.scroll-opt.wrong {
+  background: var(--wrong-bg);
+  border-color: var(--wrong-border);
+}
+.scroll-opt.wrong .scroll-opt-letter { background: var(--wrong); color: #fff; }
+.scroll-opt.wrong .scroll-opt-text { color: var(--wrong-text); }
+
+.scroll-opt.dimmed { opacity: 0.3; }
+
+.scroll-feedback {
+  margin: 4px 10px 10px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  display: none;
+}
+.scroll-feedback.show { display: flex; align-items: center; gap: 8px; }
+.scroll-feedback.ok { background: var(--correct-bg); color: var(--correct-text); border: 1px solid var(--correct-border); }
+.scroll-feedback.fail { background: var(--wrong-bg); color: var(--wrong-text); border: 1px solid var(--wrong-border); }
+
+/* scroll result */
+#screen-scroll-result {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 40px 24px;
+  gap: 0;
+}
 </style>
 </head>
 <body>
@@ -720,7 +888,49 @@ mark.user-kw:hover, mark.user-kw.removing {
     </div>
 
     <div class="setup-avail" id="setup-avail"></div>
+
+    <!-- Mode toggle -->
+    <div style="display:flex;gap:8px;margin-bottom:12px;margin-top:8px">
+      <button id="mode-btn-card" onclick="setQuizMode('card')"
+        style="flex:1;padding:11px;border-radius:var(--radius);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;border:2px solid var(--accent);background:var(--accent);color:#1a1a1e;transition:all .15s">
+        📋 Карткі
+      </button>
+      <button id="mode-btn-scroll" onclick="setQuizMode('scroll')"
+        style="flex:1;padding:11px;border-radius:var(--radius);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;border:2px solid var(--border);background:transparent;color:var(--text-dim);transition:all .15s">
+        📜 Скрол
+      </button>
+    </div>
+
     <button class="setup-start-btn" id="setup-go-btn" onclick="launchFromSetup()">Почати →</button>
+  </div>
+</div>
+
+<!-- SCROLL MODE -->
+<div class="screen" id="screen-scroll">
+  <div class="scroll-topbar">
+    <div class="scroll-back" onclick="confirmQuitScroll()">←</div>
+    <div class="scroll-progress-wrap">
+      <div class="scroll-progress-bar">
+        <div class="scroll-progress-fill" id="scroll-prog-fill" style="width:0%"></div>
+      </div>
+      <div class="scroll-progress-txt" id="scroll-prog-txt">0 / 0</div>
+    </div>
+    <button class="scroll-finish-btn" onclick="finishScroll()">Завершити ✓</button>
+  </div>
+  <div class="scroll-body" id="scroll-body-list"></div>
+</div>
+
+<!-- SCROLL RESULT -->
+<div class="screen" id="screen-scroll-result">
+  <div class="result-mode" id="sr-mode">Результат</div>
+  <div class="result-score" id="sr-score">0/0</div>
+  <div class="result-phrase" id="sr-phrase"></div>
+  <div class="result-pct" id="sr-pct"></div>
+  <div class="result-note" id="sr-note"></div>
+  <div class="result-btns" style="margin-top:28px">
+    <button class="rbtn rbtn-primary" onclick="launchScrollAgain()">Ще раз (скрол)</button>
+    <button class="rbtn rbtn-ghost" onclick="goBackFromResult()">← Назад</button>
+    <button class="rbtn rbtn-ghost" onclick="goApp()">Відкрити TikTok →</button>
   </div>
 </div>
 
@@ -1088,9 +1298,28 @@ function setupGoBack() {
   else showSubject(currentSubject);
 }
 
+// ── QUIZ MODE (card vs scroll) ──
+let quizMode = 'card'; // 'card' | 'scroll'
+
+function setQuizMode(mode) {
+  quizMode = mode;
+  const cardBtn = document.getElementById('mode-btn-card');
+  const scrollBtn = document.getElementById('mode-btn-scroll');
+  if (mode === 'card') {
+    cardBtn.style.background = 'var(--accent)'; cardBtn.style.color = '#1a1a1e'; cardBtn.style.borderColor = 'var(--accent)';
+    scrollBtn.style.background = 'transparent'; scrollBtn.style.color = 'var(--text-dim)'; scrollBtn.style.borderColor = 'var(--border)';
+  } else {
+    scrollBtn.style.background = 'var(--accent)'; scrollBtn.style.color = '#1a1a1e'; scrollBtn.style.borderColor = 'var(--accent)';
+    cardBtn.style.background = 'transparent'; cardBtn.style.color = 'var(--text-dim)'; cardBtn.style.borderColor = 'var(--border)';
+  }
+}
+
 function launchFromSetup() {
-  if (setupMode === 'mistakes') startMistakesQuiz();
-  else launchTopicQuiz();
+  if (setupMode === 'mistakes') {
+    quizMode === 'scroll' ? startMistakesScroll() : startMistakesQuiz();
+  } else {
+    quizMode === 'scroll' ? launchScrollQuiz() : launchTopicQuiz();
+  }
 }
 
 function launchTopicQuiz() {
@@ -1149,7 +1378,188 @@ function startMistakesQuiz() {
   renderQ();
 }
 
-// ══ MANUAL KEYWORD HIGHLIGHTING ══
+// ══ SCROLL MODE ══
+let scrollSession = [];
+let scrollAnswered = []; // null | true | false per question
+let scrollCorrectIdx = []; // correct option index after shuffle
+
+function buildScrollPool() {
+  if (setupMode === 'mistakes') {
+    const m = getMistakes();
+    let pool = Object.values(m).filter(mi => {
+      const subjOk = setupMistakesSubject === '__all__' || mi.subject === setupMistakesSubject;
+      const topicOk = setupMistakesTopic === '__all__' || (mi.topic || 'Без теми') === setupMistakesTopic;
+      return subjOk && topicOk;
+    });
+    pool.sort((a,b) => b.wrongCount - a.wrongCount);
+    const count = setupCount === 9999 ? pool.length : Math.min(setupCount, pool.length);
+    return shuffle(pool).slice(0, count).map(mi => [mi.subject, mi.question, mi.answers, mi.correctText]);
+  } else {
+    const qs = DB[currentSubject][currentTopic] || [];
+    const prog = getProgress(currentSubject, currentTopic);
+    const seenSet = new Set(prog.seen);
+    const unseen = qs.map((_,i)=>i).filter(i=>!seenSet.has(i));
+    const seen = qs.map((_,i)=>i).filter(i=>seenSet.has(i));
+    let pool = shuffle(unseen);
+    const count = setupCount === 9999 ? qs.length : setupCount;
+    if (pool.length < count) pool = [...pool, ...shuffle(seen)];
+    return pool.slice(0, count).map(i => qs[i]);
+  }
+}
+
+function launchScrollQuiz() {
+  scrollSession = buildScrollPool();
+  if (!scrollSession.length) { alert('Немає питань!'); return; }
+  scrollAnswered = new Array(scrollSession.length).fill(null);
+  scrollCorrectIdx = [];
+  incSessions();
+  document.body.classList.add('light');
+  renderScrollSession();
+  showScreen('screen-scroll');
+}
+
+function startMistakesScroll() {
+  launchScrollQuiz();
+}
+
+function renderScrollSession() {
+  const letters = ['А','Б','В','Г','Д'];
+  const container = document.getElementById('scroll-body-list');
+  container.innerHTML = '';
+  scrollCorrectIdx = [];
+
+  scrollSession.forEach((q, qi) => {
+    const answers = Array.isArray(q) ? q[2] : q.answers;
+    const correctText = Array.isArray(q) ? q[3] : q.correctText;
+    const qText = Array.isArray(q) ? q[1] : q.question;
+    const subject = Array.isArray(q) ? q[0] : q.subject;
+
+    const shuffled = shuffle(answers);
+    const ci = shuffled.indexOf(correctText);
+    scrollCorrectIdx.push(ci);
+
+    const card = document.createElement('div');
+    card.className = 'scroll-q-card';
+    card.id = `sq-${qi}`;
+
+    let optsHtml = '';
+    shuffled.forEach((ans, oi) => {
+      optsHtml += `<button class="scroll-opt" data-ci="${oi}" data-qi="${qi}" data-oi="${oi}" onclick="scrollPick(${qi},${oi})">
+        <div class="scroll-opt-letter">${letters[oi]}</div>
+        <div class="scroll-opt-text">${escapeHtml(ans)}</div>
+      </button>`;
+    });
+
+    card.innerHTML = `
+      <div class="scroll-q-num">Питання ${qi+1} · ${escapeHtml(subject)}</div>
+      <div class="scroll-q-text">${escapeHtml(qText)}</div>
+      <div class="scroll-opts" id="sopts-${qi}">${optsHtml}</div>
+      <div class="scroll-feedback" id="sfb-${qi}"></div>`;
+    container.appendChild(card);
+  });
+
+  updateScrollProgress();
+}
+
+function scrollPick(qi, oi) {
+  if (scrollAnswered[qi] !== null) return;
+  const isCorrect = oi === scrollCorrectIdx[qi];
+  scrollAnswered[qi] = isCorrect;
+
+  const q = scrollSession[qi];
+  const letters = ['А','Б','В','Г','Д'];
+
+  // Style buttons
+  const optsEl = document.getElementById(`sopts-${qi}`);
+  optsEl.querySelectorAll('.scroll-opt').forEach((btn, i) => {
+    btn.disabled = true;
+    if (i === scrollCorrectIdx[qi]) btn.classList.add('correct');
+    else if (i === oi && !isCorrect) btn.classList.add('wrong');
+    else btn.classList.add('dimmed');
+  });
+
+  // Feedback
+  const fb = document.getElementById(`sfb-${qi}`);
+  fb.className = 'scroll-feedback show ' + (isCorrect ? 'ok' : 'fail');
+  fb.textContent = isCorrect ? '✓ Правильно!' : `✗ Правильна: ${letters[scrollCorrectIdx[qi]]}`;
+
+  // Track mistake & progress
+  if (!isCorrect) {
+    addMistake(Array.isArray(q) ? q : [q.subject, q.question, q.answers, q.correctText]);
+  }
+  if (setupMode !== 'mistakes') {
+    const qs = DB[currentSubject][currentTopic] || [];
+    const origIdx = qs.findIndex(c => c[1] === (Array.isArray(q) ? q[1] : q.question));
+    if (origIdx >= 0) {
+      const prog = getProgress(currentSubject, currentTopic);
+      const seenSet = new Set(prog.seen);
+      const correctSet = new Set(prog.correct);
+      const wrongSet = new Set(prog.wrong);
+      seenSet.add(origIdx);
+      if (isCorrect) correctSet.add(origIdx); else wrongSet.add(origIdx);
+      saveProgress(currentSubject, currentTopic, { seen:[...seenSet], correct:[...correctSet], wrong:[...wrongSet] });
+    }
+  }
+
+  updateScrollProgress();
+
+  // Auto-scroll to next unanswered question
+  setTimeout(() => {
+    const nextUnanswered = scrollAnswered.findIndex((a, i) => i > qi && a === null);
+    if (nextUnanswered >= 0) {
+      const nextCard = document.getElementById(`sq-${nextUnanswered}`);
+      if (nextCard) nextCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, 400);
+}
+
+function updateScrollProgress() {
+  const answered = scrollAnswered.filter(a => a !== null).length;
+  const total = scrollSession.length;
+  const pct = Math.round((answered / total) * 100);
+  document.getElementById('scroll-prog-fill').style.width = pct + '%';
+  document.getElementById('scroll-prog-txt').textContent = `${answered} / ${total} · ${pct}%`;
+}
+
+function finishScroll() {
+  const answered = scrollAnswered.filter(a => a !== null).length;
+  const total = scrollSession.length;
+  if (answered < total) {
+    if (!confirm(`Відповіли на ${answered} з ${total}. Завершити?`)) return;
+  }
+  showScrollResult();
+}
+
+function confirmQuitScroll() {
+  if (confirm('Вийти зі скрол-режиму?')) {
+    document.body.classList.remove('light');
+    if (setupMode === 'mistakes') showMistakesScreen();
+    else showSubject(currentSubject);
+  }
+}
+
+function showScrollResult() {
+  const correct = scrollAnswered.filter(a => a === true).length;
+  const answered = scrollAnswered.filter(a => a !== null).length;
+  const total = scrollSession.length;
+  const pct = answered > 0 ? Math.round((correct/answered)*100) : 0;
+
+  document.getElementById('sr-mode').textContent = setupMode === 'mistakes' ? 'Робота над помилками' : `${currentSubject} · ${currentTopic}`;
+  document.getElementById('sr-score').textContent = `${correct}/${answered}`;
+  document.getElementById('sr-pct').textContent = `${pct}% правильних`;
+  const phrases = ['Не здавайся 💀','Більше практики','Непогано','Добре!','Відмінно!','Ідеально! 🔥'];
+  document.getElementById('sr-phrase').textContent = phrases[Math.min(Math.floor(pct/20),5)];
+  document.getElementById('sr-note').textContent = answered < total ? `(${total-answered} питань без відповіді)` : '';
+
+  document.body.classList.remove('light');
+  updateHomeUI();
+  showScreen('screen-scroll-result');
+}
+
+function launchScrollAgain() {
+  document.body.classList.add('light');
+  launchScrollQuiz();
+}
 // Зберігаємо: { "qKey": ["фраза1", "фраза2", ...] }
 // qKey = перші 80 символів питання
 
