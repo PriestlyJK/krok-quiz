@@ -760,8 +760,13 @@ mark.user-kw:hover, mark.user-kw.removing {
 <div class="screen" id="screen-home">
   <div class="scroll-body">
     <div class="home-header">
-      <div class="home-title">КРОК 1</div>
-      <div class="home-sub">Ліцензійний інтегрований іспит</div>
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div class="home-title">КРОК 1</div>
+          <div class="home-sub">Ліцензійний інтегрований іспит</div>
+        </div>
+        <button onclick="toggleTheme()" id="theme-btn" style="width:40px;height:40px;border-radius:50%;border:1px solid var(--border);background:var(--surface);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">🌙</button>
+      </div>
     </div>
 
     <div class="home-stats">
@@ -785,6 +790,15 @@ mark.user-kw:hover, mark.user-kw.removing {
         <div class="mb-sub" id="mb-sub">0 питань чекають на повторення</div>
       </div>
       <div class="mb-arrow">→</div>
+    </div>
+
+    <!-- Saved folders banner -->
+    <div id="saved-banner" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:16px;cursor:pointer;display:flex;align-items:center;justify-content:space-between" onclick="showSavedScreen()">
+      <div>
+        <div style="font-size:14px;font-weight:700;color:var(--text)">📁 Збережені питання</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-top:2px" id="saved-banner-sub">0 питань у папках</div>
+      </div>
+      <div style="font-size:18px;color:var(--text-dimmer)">→</div>
     </div>
 
     <div class="section-title">Предмети</div>
@@ -950,6 +964,32 @@ mark.user-kw:hover, mark.user-kw.removing {
   </div>
 </div>
 
+<!-- SAVED QUESTIONS SCREEN -->
+<div class="screen" id="screen-saved">
+  <div class="back-btn" onclick="showHome()">← Назад</div>
+  <div class="scroll-body" style="padding:20px 20px 40px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div>
+        <div style="font-size:22px;font-weight:700">📁 Збережені</div>
+        <div style="font-size:13px;color:var(--text-dim);margin-top:3px" id="saved-screen-sub">0 питань</div>
+      </div>
+      <button onclick="startSavedQuiz()" style="background:var(--accent);border:none;color:#1a1a1e;padding:10px 16px;border-radius:var(--radius);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">Тренувати →</button>
+    </div>
+
+    <!-- Folder selector -->
+    <div style="margin-bottom:16px">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.15em;color:var(--text-dimmer);margin-bottom:8px">Папки</div>
+      <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px" id="folder-chips"></div>
+      <div style="display:flex;gap:8px">
+        <input id="new-folder-input" type="text" placeholder="Нова папка..." style="flex:1;padding:9px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-family:inherit;font-size:13px">
+        <button onclick="createFolder()" style="padding:9px 14px;background:var(--accent);color:#1a1a1e;border:none;border-radius:var(--radius);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">+</button>
+      </div>
+    </div>
+
+    <div id="saved-list"></div>
+  </div>
+</div>
+
 <script>
 // ══ STATE ══
 let DB = {}; // { subject: { topic: [q, q, ...] } }
@@ -1075,6 +1115,16 @@ function updateHomeUI() {
     document.getElementById('mb-sub').textContent = `${cnt} питань чекають на повторення`;
   } else {
     banner.classList.remove('show');
+  }
+
+  // Saved questions banner
+  const savedData = getSavedFolders();
+  const savedTotal = Object.values(savedData).reduce((s,qs)=>s+qs.length, 0);
+  const savedBanner = document.getElementById('saved-banner');
+  if (savedBanner) {
+    savedBanner.style.display = savedTotal > 0 ? 'flex' : 'none';
+    const savedSub = document.getElementById('saved-banner-sub');
+    if (savedSub) savedSub.textContent = `${savedTotal} питань у ${Object.keys(savedData).length} папках`;
   }
 }
 
@@ -1745,6 +1795,9 @@ function renderQ() {
   const hint = document.getElementById('quiz-hint-bar');
   hint.textContent = remoteConnected ? '📱 Відповідай з телефону' : 'Оберіть варіант відповіді';
 
+  // Bookmark button
+  setTimeout(() => showBookmarkBtn(SESSION[sessionIdx]), 50);
+
   setTimeout(publishQuestion, 100);
 }
 
@@ -2050,7 +2103,232 @@ function openRemoteLink() {
   window.open(url, '_blank');
 }
 
+// ══ THEME ══
+let isDark = true;
+
+function toggleTheme() {
+  isDark = !isDark;
+  applyTheme();
+  localStorage.setItem('krok_theme', isDark ? 'dark' : 'light');
+}
+
+function applyTheme() {
+  if (isDark) {
+    document.body.classList.remove('light');
+    document.getElementById('theme-btn').textContent = '🌙';
+  } else {
+    document.body.classList.add('light');
+    document.getElementById('theme-btn').textContent = '☀️';
+  }
+}
+
+// ══ SAVED FOLDERS ══
+// { folderName: [ {subject, topic, question, answers, correctText}, ... ] }
+function getSavedFolders() { return load('krok_saved') || {}; }
+function saveSavedFolders(d) { save('krok_saved', d); }
+
+let currentSavedFolder = '__all__';
+
+function getSavedKey(q) {
+  const text = Array.isArray(q) ? q[1] : q.question;
+  return 'saved_' + text.substring(0,60);
+}
+
+function isQuestionSaved(q) {
+  const d = getSavedFolders();
+  const key = getSavedKey(q);
+  return Object.values(d).some(qs => qs.some(sq => getSavedKey(sq) === key));
+}
+
+function saveQuestion(q, folderName) {
+  const d = getSavedFolders();
+  if (!d[folderName]) d[folderName] = [];
+  const key = getSavedKey(q);
+  // Avoid duplicates in folder
+  if (d[folderName].some(sq => getSavedKey(sq) === key)) return;
+  const item = {
+    subject: Array.isArray(q) ? q[0] : q.subject,
+    topic: currentTopic,
+    question: Array.isArray(q) ? q[1] : q.question,
+    answers: Array.isArray(q) ? q[2] : q.answers,
+    correctText: Array.isArray(q) ? q[3] : q.correctText,
+  };
+  d[folderName].push(item);
+  saveSavedFolders(d);
+}
+
+function removeSavedQuestion(key, folder) {
+  const d = getSavedFolders();
+  if (!d[folder]) return;
+  d[folder] = d[folder].filter(sq => getSavedKey(sq) !== key);
+  if (!d[folder].length) delete d[folder];
+  saveSavedFolders(d);
+  renderSavedScreen();
+  updateHomeUI();
+}
+
+function createFolder() {
+  const input = document.getElementById('new-folder-input');
+  const name = input.value.trim();
+  if (!name) return;
+  const d = getSavedFolders();
+  if (!d[name]) { d[name] = []; saveSavedFolders(d); }
+  input.value = '';
+  renderSavedScreen();
+}
+
+function deleteFolder(name) {
+  if (!confirm(`Видалити папку "${name}" і всі питання в ній?`)) return;
+  const d = getSavedFolders();
+  delete d[name];
+  saveSavedFolders(d);
+  currentSavedFolder = '__all__';
+  renderSavedScreen();
+  updateHomeUI();
+}
+
+function showSavedScreen() {
+  renderSavedScreen();
+  showScreen('screen-saved');
+}
+
+function renderSavedScreen() {
+  const d = getSavedFolders();
+  const folders = Object.keys(d);
+  const total = Object.values(d).reduce((s,qs)=>s+qs.length, 0);
+
+  document.getElementById('saved-screen-sub').textContent = `${total} питань · ${folders.length} папок`;
+
+  // Folder chips
+  const chipsEl = document.getElementById('folder-chips');
+  chipsEl.innerHTML = '';
+  const allChip = document.createElement('button');
+  allChip.textContent = `Усі (${total})`;
+  allChip.className = 'subj-chip' + (currentSavedFolder === '__all__' ? ' active' : '');
+  allChip.onclick = () => { currentSavedFolder = '__all__'; renderSavedScreen(); };
+  chipsEl.appendChild(allChip);
+
+  folders.forEach(f => {
+    const chip = document.createElement('button');
+    chip.textContent = `${f} (${d[f].length})`;
+    chip.className = 'subj-chip' + (currentSavedFolder === f ? ' active' : '');
+    chip.onclick = () => { currentSavedFolder = f; renderSavedScreen(); };
+    chipsEl.appendChild(chip);
+  });
+
+  // Questions list
+  const listEl = document.getElementById('saved-list');
+  listEl.innerHTML = '';
+
+  let questions = [];
+  if (currentSavedFolder === '__all__') {
+    folders.forEach(f => d[f].forEach(q => questions.push({...q, _folder: f})));
+  } else {
+    (d[currentSavedFolder] || []).forEach(q => questions.push({...q, _folder: currentSavedFolder}));
+  }
+
+  if (!questions.length) {
+    listEl.innerHTML = `<div style="color:var(--text-dim);font-size:14px;text-align:center;padding:40px 0">
+      ${folders.length ? 'Папка порожня' : 'Немає збережених питань.<br>Натисни 🔖 під час тесту щоб зберегти.'}</div>`;
+    return;
+  }
+
+  // Group by folder
+  const byFolder = {};
+  questions.forEach(q => {
+    if (!byFolder[q._folder]) byFolder[q._folder] = [];
+    byFolder[q._folder].push(q);
+  });
+
+  Object.entries(byFolder).forEach(([folder, qs]) => {
+    const groupEl = document.createElement('div');
+    groupEl.style.marginBottom = '20px';
+    const key = getSavedKey;
+    groupEl.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="font-size:13px;font-weight:700;color:var(--accent)">📁 ${escapeHtml(folder)} (${qs.length})</div>
+        <button onclick="deleteFolder('${escapeHtml(folder)}')" style="padding:3px 10px;background:transparent;border:1px solid var(--border);color:var(--text-dimmer);border-radius:4px;font-family:inherit;font-size:11px;cursor:pointer">Видалити папку</button>
+      </div>`;
+    qs.forEach(q => {
+      const qShort = q.question.length > 90 ? q.question.substring(0,90)+'…' : q.question;
+      const qkey = getSavedKey(q);
+      const item = document.createElement('div');
+      item.className = 'mistake-item';
+      item.style.marginBottom = '7px';
+      item.innerHTML = `
+        <div class="mi-q">${escapeHtml(qShort)}</div>
+        <div style="font-size:18px;color:var(--text-dimmer);padding:0 4px;cursor:pointer" onclick="removeSavedQuestion('${qkey.replace(/'/g,"\\'")}','${folder.replace(/'/g,"\\'")}')">×</div>`;
+      groupEl.appendChild(item);
+    });
+    listEl.appendChild(groupEl);
+  });
+
+  updateHomeUI();
+}
+
+function startSavedQuiz() {
+  const d = getSavedFolders();
+  let pool = [];
+  if (currentSavedFolder === '__all__') {
+    Object.values(d).forEach(qs => pool.push(...qs));
+  } else {
+    pool = d[currentSavedFolder] || [];
+  }
+  if (!pool.length) { alert('Немає питань для тренування!'); return; }
+
+  SESSION = shuffle(pool).map(q => [q.subject, q.question, q.answers, q.correctText]);
+  currentMode = 'mistakes';
+  sessionIdx = 0; sessionResults = [];
+  incSessions();
+  document.getElementById('q-subj').textContent = `📁 ${currentSavedFolder === '__all__' ? 'Збережені' : currentSavedFolder}`;
+  showScreen('screen-quiz');
+  renderQ();
+}
+
+// Bookmark button in quiz — shown during active question
+function showBookmarkBtn(q) {
+  let btn = document.getElementById('bookmark-quiz-btn');
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.id = 'bookmark-quiz-btn';
+    btn.style.cssText = 'position:absolute;top:8px;right:8px;background:transparent;border:none;font-size:22px;cursor:pointer;z-index:10;padding:4px';
+    document.querySelector('.quiz-body').style.position = 'relative';
+    document.querySelector('.quiz-body').appendChild(btn);
+  }
+  const saved = isQuestionSaved(q);
+  btn.textContent = saved ? '🔖' : '🔖';
+  btn.style.opacity = saved ? '1' : '0.4';
+  btn.onclick = () => showSaveDialog(q, btn);
+}
+
+function showSaveDialog(q, btn) {
+  const d = getSavedFolders();
+  const folders = Object.keys(d);
+
+  // Simple folder picker
+  let folderName;
+  if (!folders.length) {
+    folderName = prompt('Назва папки для збереження:');
+    if (!folderName) return;
+  } else {
+    const opts = folders.join('\n');
+    folderName = prompt(`Оберіть папку або введіть нову:\n${opts}\n\nВведіть назву:`);
+    if (!folderName) return;
+  }
+
+  saveQuestion(q, folderName.trim());
+  btn.style.opacity = '1';
+  // Brief feedback
+  btn.textContent = '✅';
+  setTimeout(() => { btn.textContent = '🔖'; }, 1000);
+  updateHomeUI();
+}
+
 init();
+
+// Apply saved theme on load
+const savedTheme = localStorage.getItem('krok_theme');
+if (savedTheme === 'light') { isDark = false; applyTheme(); }
 </script>
 </body>
 </html>
