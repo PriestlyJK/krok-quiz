@@ -1,0 +1,5 @@
+/*
+  Content-Security-Policy: default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.ably.com https://krok-proxy.zlata-artiukhova.workers.dev; connect-src 'self' https://krok-proxy.zlata-artiukhova.workers.dev https://realtime.ably.io wss://realtime.ably.io https://cdn.ably.com https://fonts.googleapis.com https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:;
+  X-Frame-Options: SAMEORIGIN
+  X-Content-Type-Options: nosniff
+  Cache-Control: public, max-age=3600

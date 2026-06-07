@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>КРОК 1</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1a1a1e" id="theme-color-meta">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="КРОК 1">
+<link rel="apple-touch-icon" href="/icon-192.png">
 <script src="https://cdn.ably.com/lib/ably.min-2.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap');
@@ -2171,6 +2177,8 @@ function applyTheme() {
     document.body.classList.add('light');
     document.getElementById('theme-btn').textContent = '☀️';
   }
+  const meta = document.getElementById('theme-color-meta');
+  if (meta) meta.content = isDark ? '#1a1a1e' : '#f5f4f0';
 }
 
 // ══ SAVED FOLDERS ══
@@ -2501,7 +2509,7 @@ async function showExplanation(q, correctLetter, correctText, wrongText) {
 Дай коротке пояснення (3-5 речень) українською: чому "${correctText}" правильна і чому "${wrongText}" неправильна. По суті, без зайвих слів.`;
 
   try {
-    const resp = await fetch('ANTHROPIC_PROXY_URL', {
+    const resp = await fetch(ANTHROPIC_PROXY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01', },
       body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 300, messages: [{ role: 'user', content: prompt }] })
@@ -2544,7 +2552,7 @@ async function showScrollExplanation(qi, correctText, wrongText, q) {
 Дай коротке пояснення (3-5 речень) українською: чому "${correctText}" правильна і чому "${wrongText}" неправильна. По суті, без зайвих слів.`;
 
   try {
-    const resp = await fetch('ANTHROPIC_PROXY_URL', {
+    const resp = await fetch(ANTHROPIC_PROXY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01', },
       body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 300, messages: [{ role: 'user', content: prompt }] })
@@ -2589,7 +2597,7 @@ async function showExplanation(q, correctLetter, correctText, wrongText) {
 Відповідай чітко і по суті, без зайвих слів.`;
 
   try {
-    const resp = await fetch('ANTHROPIC_PROXY_URL', {
+    const resp = await fetch(ANTHROPIC_PROXY_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -2637,7 +2645,7 @@ async function showScrollExplanation(qi, correctText, wrongText, q) {
 Дай коротке пояснення (3-5 речень) українською мовою чому правильна відповідь правильна і чому відповідь студента неправильна. По суті, без зайвих слів.`;
 
   try {
-    const resp = await fetch('ANTHROPIC_PROXY_URL', {
+    const resp = await fetch(ANTHROPIC_PROXY_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -2662,6 +2670,23 @@ init();
 // Apply saved theme on load
 const savedTheme = localStorage.getItem('krok_theme');
 if (savedTheme === 'light') { isDark = false; applyTheme(); }
+
+// Update theme-color meta tag
+function updateThemeColorMeta() {
+  const meta = document.getElementById('theme-color-meta');
+  if (meta) meta.content = isDark ? '#1a1a1e' : '#f5f4f0';
+}
+
+// Register Service Worker for PWA/offline
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').then(reg => {
+      console.log('SW registered:', reg.scope);
+    }).catch(err => {
+      console.log('SW registration failed:', err);
+    });
+  });
+}
 
 // Show API key status on home button
 function updateApiKeyBtn() {
