@@ -2418,6 +2418,7 @@ function saveToNewFolder() {
 }
 
 // ══ EXPLANATIONS (Claude API) ══
+const ANTHROPIC_PROXY_URL = 'https://krok-proxy.zlata-artiukhova.workers.dev';
 function getAnthropicKey() {
   return localStorage.getItem('krok_api_key') || '';
 }
@@ -2500,9 +2501,9 @@ async function showExplanation(q, correctLetter, correctText, wrongText) {
 Дай коротке пояснення (3-5 речень) українською: чому "${correctText}" правильна і чому "${wrongText}" неправильна. По суті, без зайвих слів.`;
 
   try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    const resp = await fetch('ANTHROPIC_PROXY_URL', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01', },
       body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 300, messages: [{ role: 'user', content: prompt }] })
     });
     const data = await resp.json();
@@ -2543,9 +2544,9 @@ async function showScrollExplanation(qi, correctText, wrongText, q) {
 Дай коротке пояснення (3-5 речень) українською: чому "${correctText}" правильна і чому "${wrongText}" неправильна. По суті, без зайвих слів.`;
 
   try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    const resp = await fetch('ANTHROPIC_PROXY_URL', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01', },
       body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 300, messages: [{ role: 'user', content: prompt }] })
     });
     const data = await resp.json();
@@ -2588,14 +2589,12 @@ async function showExplanation(q, correctLetter, correctText, wrongText) {
 Відповідай чітко і по суті, без зайвих слів.`;
 
   try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    const resp = await fetch('ANTHROPIC_PROXY_URL', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': ANTHROPIC_KEY,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
+        'anthropic-version': '2023-06-01'},
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 300,
@@ -2638,14 +2637,12 @@ async function showScrollExplanation(qi, correctText, wrongText, q) {
 Дай коротке пояснення (3-5 речень) українською мовою чому правильна відповідь правильна і чому відповідь студента неправильна. По суті, без зайвих слів.`;
 
   try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    const resp = await fetch('ANTHROPIC_PROXY_URL', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': ANTHROPIC_KEY,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
+        'anthropic-version': '2023-06-01'},
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 300,
